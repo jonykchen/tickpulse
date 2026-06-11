@@ -26,7 +26,7 @@
       }
     ],
     "security": {
-      "csp": null
+      "csp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src https://*.eastmoney.com https://*.10jqka.com.cn https://*.sina.com.cn https://*.1234567.com.cn https://*.dzh.com.cn https://*.gtimg.cn https://*.qq.com wss://*.stock-monitor.app https://sync.stock-monitor.app"
     },
     "trayIcon": {
       "iconPath": "icons/icon.png",

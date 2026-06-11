@@ -1,7 +1,7 @@
 {
   "identifier": "default",
   "description": "Default permissions for the app",
-  "windows": ["main"],
+  "windows": ["main", "suspend"],
   "permissions": [
     "core:default",
     "core:window:default",
@@ -12,6 +12,12 @@
     "core:window:allow-set-title",
     "core:window:allow-set-size",
     "core:window:allow-set-position",
+    "core:window:allow-set-focus",
+    "core:window:allow-set-always-on-top",
+    "core:window:allow-set-decorations",
+    "core:window:allow-set-skip-taskbar",
+    "core:window:allow-create",
+    "core:window:allow-is-visible",
     "notification:default",
     "notification:allow-notify",
     "notification:allow-request-permission",

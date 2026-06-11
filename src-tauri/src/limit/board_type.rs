@@ -2,6 +2,7 @@ use serde::{Deserialize, Serialize};
 
 /// 板块类型
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
 pub enum BoardType {
     /// 沪市主板
     MainBoardSH,
@@ -17,10 +18,12 @@ pub enum BoardType {
 
 /// 股票状态枚举
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
 pub enum StockStatus {
     /// 正常交易
     Normal,
     /// ST股
+    #[serde(rename = "st")]
     ST,
     /// 退市整理
     Delisting,

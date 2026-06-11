@@ -12,7 +12,7 @@ pub fn analyze_growth_potential(
     let mut key_points = Vec::new();
     let mut risks = Vec::new();
     let mut opportunities = Vec::new();
-    let mut confidence = 0.3;
+    let mut confidence = 0.3_f64;
 
     if let Some(metrics) = parse_metrics(data) {
         confidence = 0.6;
@@ -95,7 +95,7 @@ pub fn analyze_growth_potential(
         key_points,
         risks,
         opportunities,
-        confidence: confidence.clamp(0.0, 1.0),
+        confidence: confidence.clamp(0.0_f64, 1.0_f64),
     }
 }
 
@@ -109,7 +109,7 @@ struct ParsedMetrics {
 
 fn parse_metrics(data: &str) -> Option<ParsedMetrics> {
     let mut pe_ttm = f64::NAN;
-    let mut ytd_change = 0.0;
+    let ytd_change = 0.0;
     let mut volume_ratio = 0.0;
     let mut main_net_inflow = 0.0;
     let mut turnover_rate = 0.0;

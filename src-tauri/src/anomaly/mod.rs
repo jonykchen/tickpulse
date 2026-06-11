@@ -3,7 +3,6 @@ pub mod types;
 use crate::market::StockQuote;
 use dashmap::DashMap;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 
 /// 异动检测引擎
 pub struct AnomalyDetector {

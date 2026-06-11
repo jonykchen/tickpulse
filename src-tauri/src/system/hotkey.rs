@@ -2,11 +2,11 @@
 //! CmdOrCtrl+Shift+S: 切换主窗口显示/隐藏
 //! CmdOrCtrl+Shift+D: 打开悬浮窗
 
-use tauri::App;
-use tauri_plugin_global_shortcut::{Code, GlobalShortcutExt, Modifiers, Shortcut, ShortcutEvent};
+use tauri::{App, Manager};
+use tauri_plugin_global_shortcut::{Code, GlobalShortcutExt, Modifiers, Shortcut, ShortcutState};
 
 /// 注册全局快捷键
-pub fn register_hotkeys(app: &App) -> Result<(), tauri::Error> {
+pub fn register_hotkeys(app: &App) -> Result<(), tauri_plugin_global_shortcut::Error> {
     let shortcut = app.global_shortcut();
 
     // CmdOrCtrl+Shift+S: 切换主窗口
@@ -14,8 +14,8 @@ pub fn register_hotkeys(app: &App) -> Result<(), tauri::Error> {
         Some(Modifiers::SUPER | Modifiers::SHIFT),
         Code::KeyS,
     );
-    shortcut.on_shortcut(toggle_shortcut, move |app, _event, kind| {
-        if kind != ShortcutEvent::Pressed {
+    shortcut.on_shortcut(toggle_shortcut, move |app, _shortcut, event| {
+        if event.state() != ShortcutState::Pressed {
             return;
         }
         if let Some(window) = app.get_webview_window("main") {
@@ -33,8 +33,8 @@ pub fn register_hotkeys(app: &App) -> Result<(), tauri::Error> {
         Some(Modifiers::SUPER | Modifiers::SHIFT),
         Code::KeyD,
     );
-    shortcut.on_shortcut(float_shortcut, move |app, _event, kind| {
-        if kind != ShortcutEvent::Pressed {
+    shortcut.on_shortcut(float_shortcut, move |app, _shortcut, event| {
+        if event.state() != ShortcutState::Pressed {
             return;
         }
         super::window::open_suspend_window(app);

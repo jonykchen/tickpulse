@@ -4,7 +4,7 @@ use crate::limit::board_type::StockStatus;
 use crate::market::exchange::is_st_stock;
 use crate::market::{
     AdjustType, ExRightInfo, KlineBar, KlinePeriod, MarketDataSource, SearchResult, StockQuote,
-    TimelineData, TimelinePoint, VolumeRatioNote,
+    TimelineData, TimelinePoint,
 };
 use async_trait::async_trait;
 
@@ -36,7 +36,7 @@ impl EastMoneySource {
     /// 解析行情数据
     fn parse_quotes(data: &serde_json::Value) -> Vec<StockQuote> {
         let mut quotes = Vec::new();
-        let today = chrono::Local::now().date_naive();
+        let _today = chrono::Local::now().date_naive();
 
         if let Some(diff) = data.get("data").and_then(|d| d.get("diff")).and_then(|d| d.as_array()) {
             for item in diff {

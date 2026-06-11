@@ -12,7 +12,7 @@ pub fn analyze_management_quality(
     let mut key_points = Vec::new();
     let mut risks = Vec::new();
     let mut opportunities = Vec::new();
-    let mut confidence = 0.25; // 间接指标，置信度较低
+    let mut confidence = 0.25_f64; // 间接指标，置信度较低
 
     if let Some(metrics) = parse_metrics(data) {
         confidence = 0.45;
@@ -81,7 +81,7 @@ pub fn analyze_management_quality(
         key_points,
         risks,
         opportunities,
-        confidence: confidence.clamp(0.0, 1.0),
+        confidence: confidence.clamp(0.0_f64, 1.0_f64),
     }
 }
 

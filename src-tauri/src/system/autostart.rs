@@ -1,7 +1,6 @@
 //! 开机自启
 //! 使用 tauri-plugin-autostart 管理
 
-use tauri::Manager;
 use tauri_plugin_autostart::ManagerExt;
 
 /// 启用开机自启

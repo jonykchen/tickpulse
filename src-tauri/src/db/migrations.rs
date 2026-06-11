@@ -1,5 +1,6 @@
 use crate::db::{DbPool, Result};
 use chrono::Utc;
+use std::sync::{Arc, Mutex};
 
 /// 迁移定义
 struct Migration {
@@ -82,7 +83,8 @@ mod tests {
         conn.execute_batch("PRAGMA journal_mode=WAL; PRAGMA foreign_keys=ON;")
             .unwrap();
         DbPool {
-            conn: Mutex::new(conn),
+            conn: Arc::new(Mutex::new(conn)),
+            db_path: std::path::PathBuf::from(":memory:"),
         }
     }
 

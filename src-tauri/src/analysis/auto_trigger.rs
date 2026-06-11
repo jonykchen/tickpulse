@@ -7,8 +7,9 @@ use tokio::sync::Mutex;
 
 use crate::db::DbPool;
 use crate::market::trade_calendar::TradeCalendar;
+use crate::market::MarketDataSource;
 
-use super::engine::{AnalysisEngine, AnalysisResult, LlmConfig};
+use super::engine::{AnalysisEngine, AnalysisResult};
 
 /// 自动触发管理器
 /// 负责：
@@ -218,7 +219,7 @@ impl AutoTriggerManager {
     /// 遍历所有自选股，跳过已分析的，分析未分析的
     pub async fn trigger_watchlist_analysis(&self) -> Result<Vec<String>, String> {
         // 1. 获取所有自选股 secid
-        let secids = self.db.get_all_watchlist_secids()?;
+        let secids = self.db.get_all_watchlist_secids().map_err(|e| e.to_string())?;
 
         if secids.is_empty() {
             tracing::info!("自选股列表为空，跳过分析");
@@ -328,7 +329,7 @@ impl AutoTriggerManager {
                     if !q.name.is_empty() {
                         // 更新数据库中的名称
                         self.update_stock_name(secid, &q.name)?;
-                        return Ok(q.name);
+                        return Ok(q.name.clone());
                     }
                 }
             }

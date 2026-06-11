@@ -207,13 +207,13 @@ impl MarketDataSource for TencentSource {
         // 解析腾讯 K 线数据结构
         if let Some(data) = body.get("data").and_then(|d| d.get(&tencent_code)) {
             let key = if period == KlinePeriod::Daily || period == KlinePeriod::Weekly || period == KlinePeriod::Monthly {
-                if let Some(qfqday) = data.get("qfqday") {
+                if let Some(_qfqday) = data.get("qfqday") {
                     "qfqday"
                 } else {
                     "day"
                 }
             } else {
-                if let Some(m_qfq) = data.get("m_qfq") {
+                if let Some(_m_qfq) = data.get("m_qfq") {
                     "m_qfq"
                 } else {
                     "m"
@@ -302,7 +302,7 @@ impl MarketDataSource for TencentSource {
                         };
                         let price = parts[1].parse().unwrap_or(0.0);
                         let avg_price = parts.get(2).and_then(|s| s.parse().ok()).unwrap_or(price);
-                        let volume = parts.get(3).and_then(|s| s.parse().unwrap_or(0));
+                        let volume = parts.get(3).and_then(|s| s.parse::<i64>().ok()).unwrap_or(0);
 
                         points.push(TimelinePoint {
                             time: time_str,

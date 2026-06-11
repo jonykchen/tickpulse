@@ -1,7 +1,7 @@
 /// 请求限速器
 use std::collections::HashMap;
 use std::sync::Mutex;
-use std::time::{Duration, Instant};
+use std::time::Instant;
 
 /// 令牌桶限速器
 pub struct RateLimiter {

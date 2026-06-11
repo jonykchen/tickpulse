@@ -8,7 +8,9 @@ use std::sync::Arc;
 
 use serde::{Deserialize, Serialize};
 
-use super::engine::{AnalysisDimension, DimensionRating, DimensionReport};
+use super::engine::DimensionReport;
+#[cfg(test)]
+use super::engine::{AnalysisDimension, DimensionRating};
 use super::llm::LlmClient;
 
 /// 质量门控评级

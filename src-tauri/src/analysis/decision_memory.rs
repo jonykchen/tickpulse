@@ -1,7 +1,7 @@
 //! 决策记忆闭环模块
 //! 存储历史决策、T+1 检验、反思学习
 
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
 use serde::{Deserialize, Serialize};
 
@@ -433,7 +433,8 @@ mod tests {
             CREATE INDEX IF NOT EXISTS idx_decision_memory_v2_date ON decision_memory_v2(decision_date);",
         ).unwrap();
         DbPool {
-            conn: Mutex::new(conn),
+            conn: Arc::new(Mutex::new(conn)),
+            db_path: std::path::PathBuf::from(":memory:"),
         }
     }
 

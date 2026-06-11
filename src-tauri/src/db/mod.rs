@@ -3,7 +3,7 @@ pub mod position;
 pub mod settings;
 pub mod watchlist;
 
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 use rusqlite::Connection;
 use thiserror::Error;
 
@@ -29,7 +29,7 @@ pub type Result<T> = std::result::Result<T, DbError>;
 /// SQLite 为文件级锁，多连接无收益
 #[derive(Clone)]
 pub struct DbPool {
-    pub conn: Mutex<Connection>,
+    pub conn: Arc<Mutex<Connection>>,
     db_path: std::path::PathBuf,
 }
 
@@ -39,7 +39,7 @@ impl DbPool {
         let conn = Connection::open(path)?;
         conn.execute_batch("PRAGMA journal_mode=WAL; PRAGMA foreign_keys=ON;")?;
         Ok(Self {
-            conn: Mutex::new(conn),
+            conn: Arc::new(Mutex::new(conn)),
             db_path: path.to_path_buf(),
         })
     }
@@ -62,7 +62,7 @@ impl DbPool {
         conn.execute_batch("PRAGMA journal_mode=WAL; PRAGMA foreign_keys=ON;")
             .unwrap();
         Self {
-            conn: Mutex::new(conn),
+            conn: Arc::new(Mutex::new(conn)),
             db_path: std::path::PathBuf::from(":memory:"),
         }
     }

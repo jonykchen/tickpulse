@@ -6,7 +6,6 @@ use crate::market::exchange::Exchange;
 use crate::market::northbound_cache::NorthboundFlow;
 use crate::market::types::MarketPhase;
 use crate::market::{MarketSummary, SchedulerStatus, StockQuote, VolumeRatioNote};
-use chrono::Timelike;
 use dashmap::DashMap;
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -206,14 +205,16 @@ impl MarketScheduler {
         }
 
         // 使用并行分批请求（200只→4批×50并行），提升大批量刷新性能
-        let quotes = self.source.fetch_quotes_parallel(&secids).await?;
+        let mut quotes = self.source.fetch_quotes_parallel(&secids).await?;
 
         // 量比衰减逻辑：开盘30分钟内（09:30-10:00）量比偏高，标记 Early
         let now_ts = chrono::Utc::now().timestamp();
-        let market_open = self.market_open_time.lock().unwrap();
-        let elapsed_minutes = market_open
-            .map(|open_ts| (now_ts - open_ts) / 60)
-            .unwrap_or(999);
+        let elapsed_minutes = {
+            let market_open = self.market_open_time.lock().unwrap();
+            market_open
+                .map(|open_ts| (now_ts - open_ts) / 60)
+                .unwrap_or(999)
+        };
 
         for quote in &mut quotes {
             let volume_ratio_note = if elapsed_minutes < 30 && quote.volume_ratio > 0.0 {

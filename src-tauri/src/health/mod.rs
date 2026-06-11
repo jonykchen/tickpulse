@@ -122,7 +122,7 @@ impl HealthCollector {
     fn get_process_rss_mb(&self) -> f64 {
         use sysinfo::System;
         let mut sys = System::new();
-        sys.refresh_processes(sysinfo::UpdateKind::All);
+        sys.refresh_processes();
         if let Some(process) = sys.process(self.pid) {
             process.memory() as f64 / (1024.0 * 1024.0)
         } else {

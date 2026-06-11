@@ -12,7 +12,7 @@ pub fn analyze_technical_signals(
     let mut key_points = Vec::new();
     let mut risks = Vec::new();
     let mut opportunities = Vec::new();
-    let mut confidence = 0.3;
+    let mut confidence = 0.3_f64;
 
     if let Some(metrics) = parse_metrics(data) {
         confidence = 0.7; // 技术面数据充分
@@ -124,7 +124,7 @@ pub fn analyze_technical_signals(
         key_points,
         risks,
         opportunities,
-        confidence: confidence.clamp(0.0, 1.0),
+        confidence: confidence.clamp(0.0_f64, 1.0_f64),
     }
 }
 
@@ -147,7 +147,7 @@ fn parse_metrics(data: &str) -> Option<ParsedMetrics> {
     let mut volume_ratio = 0.0;
     let mut turnover_rate = 0.0;
     let mut seal_strength = 0.0;
-    let mut seal_break_count = 0u32;
+    let seal_break_count = 0u32;
     let mut found = false;
 
     for line in data.lines() {

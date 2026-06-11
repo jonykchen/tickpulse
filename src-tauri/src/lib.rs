@@ -177,7 +177,7 @@ fn update_setting(key: &str, value: &str, state: tauri::State<'_, AppState>) -> 
 
 /// 搜索股票（通过 DataSourceManager 容灾链路）
 #[tauri::command]
-async fn search_stock(keyword: &str, state: tauri::State<'_, AppState>) -> Result<Vec<market::SearchResult>, String> {
+async fn search_stock(keyword: &str, _state: tauri::State<'_, AppState>) -> Result<Vec<market::SearchResult>, String> {
     // 搜索优先走东财源（DataSourceManager 中第一个支持 search 的源）
     // 直接尝试各源的 search 方法
     let source = market::sources::eastmoney::EastMoneySource::new();

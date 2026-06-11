@@ -5,6 +5,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use crate::db::DbPool;
+use crate::market::MarketDataSource;
 
 use super::debate::DebateEngine;
 use super::dimensions::competitive::analyze_competitive_position;

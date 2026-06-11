@@ -12,7 +12,7 @@ pub fn analyze_industry_trend(
     let mut key_points = Vec::new();
     let mut risks = Vec::new();
     let mut opportunities = Vec::new();
-    let mut confidence = 0.3;
+    let mut confidence = 0.3_f64;
 
     // 从数据中提取关键指标
     if let Some(metrics) = parse_stock_metrics(data) {
@@ -96,7 +96,7 @@ pub fn analyze_industry_trend(
         key_points,
         risks,
         opportunities,
-        confidence: confidence.clamp(0.0, 1.0),
+        confidence: confidence.clamp(0.0_f64, 1.0_f64),
     }
 }
 
@@ -111,7 +111,7 @@ struct StockMetrics {
 }
 
 fn parse_stock_metrics(data: &str) -> Option<StockMetrics> {
-    let mut ytd_change = 0.0_f64;
+    let ytd_change = 0.0_f64;
     let mut change_percent = 0.0_f64;
     let mut change_speed = 0.0_f64;
     let mut main_net_inflow = 0.0_f64;

@@ -84,7 +84,7 @@ impl CircuitBreaker {
 /// 按优先级尝试多个数据源，断路器保护，限速器控制请求频率
 pub struct DataSourceManager {
     sources: Vec<Arc<dyn MarketDataSource>>,
-    breakers: DashMap<String, CircuitBreaker>,
+    breakers: Arc<DashMap<String, CircuitBreaker>>,
     rate_limiter: Arc<rate_limiter::RateLimiter>,
 }
 
@@ -99,7 +99,7 @@ impl DataSourceManager {
         }
         // 默认限速：每秒5次请求，突发10次
         let rate_limiter = Arc::new(rate_limiter::RateLimiter::new(5.0, 10));
-        Self { sources, breakers, rate_limiter }
+        Self { sources, breakers: Arc::new(breakers), rate_limiter }
     }
 
     /// 按优先级尝试获取行情，断路器保护 + 限速器

@@ -1,8 +1,6 @@
 //! 分析进度追踪
 
 use serde::{Deserialize, Serialize};
-use std::sync::Arc;
-use tokio::sync::RwLock;
 
 use super::engine::AnalysisDimension;
 

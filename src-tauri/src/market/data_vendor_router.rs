@@ -270,10 +270,8 @@ impl DataVendorRouter {
                 }
                 Err(e) => {
                     tracing::warn!("从 {} 获取 {} 数据失败: {}", vendor, capability.name(), e);
-                    last_error = format!("{}{}: {}",
-                        if last_error.is_empty() { "" } else { &format!("{}, ", last_error) },
-                        vendor, e
-                    );
+                    let prefix = if last_error.is_empty() { String::new() } else { format!("{}, ", last_error) };
+                    last_error = format!("{}{}: {}", prefix, vendor, e);
                 }
             }
         }

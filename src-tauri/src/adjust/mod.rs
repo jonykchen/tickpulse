@@ -1,7 +1,6 @@
 pub mod exright;
 
 use crate::db::DbPool;
-use crate::market::AdjustType;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 

@@ -12,7 +12,7 @@ pub fn analyze_financial_health(
     let mut key_points = Vec::new();
     let mut risks = Vec::new();
     let mut opportunities = Vec::new();
-    let mut confidence = 0.3;
+    let mut confidence = 0.3_f64;
 
     if let Some(metrics) = parse_metrics(data) {
         confidence = 0.65;
@@ -92,7 +92,7 @@ pub fn analyze_financial_health(
         key_points,
         risks,
         opportunities,
-        confidence: confidence.clamp(0.0, 1.0),
+        confidence: confidence.clamp(0.0_f64, 1.0_f64),
     }
 }
 

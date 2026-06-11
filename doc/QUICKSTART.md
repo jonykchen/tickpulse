@@ -85,7 +85,7 @@ let is_early_market = minutes_since_open < 30;
 if is_early_market && quote.volume_ratio > 0.0 {
     quote.volume_ratio_note = Some(VolumeRatioNote::Early);
 }
-```
+
 
 ### 3.3 封板强度计算
 

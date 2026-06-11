@@ -1,7 +1,7 @@
 //! OpenAI 兼容客户端（支持 DeepSeek reasoning_content 回传）
 
 use async_trait::async_trait;
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 
 use super::{ChatMessage, LlmClient, LlmResponse, MessageRole, TokenUsage};
 use crate::analysis::engine::LlmConfig;

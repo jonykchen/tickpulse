@@ -26,7 +26,7 @@ impl ThsSource {
 
 #[async_trait]
 impl MarketDataSource for ThsSource {
-    async fn fetch_quotes(&self, secids: &[String]) -> Result<Vec<StockQuote>, String> {
+    async fn fetch_quotes(&self, _secids: &[String]) -> Result<Vec<StockQuote>, String> {
         // 同花顺不直接提供批量行情接口，返回空让主数据源处理
         Err("同花顺不提供批量行情API".to_string())
     }

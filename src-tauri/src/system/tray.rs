@@ -3,7 +3,7 @@
 
 use tauri::{
     menu::{Menu, MenuItem},
-    tray::{TrayIconBuilder, TrayIconId},
+    tray::TrayIconBuilder,
     App, Manager,
 };
 

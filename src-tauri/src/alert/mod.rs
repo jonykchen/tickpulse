@@ -234,12 +234,12 @@ impl AlertManager {
 
 impl DbPool {
     /// 获取所有预警规则
-    pub fn get_alert_rules(&self) -> Result<Vec<AlertRule>> {
-        let conn = self.conn()?;
+    pub fn get_alert_rules(&self) -> Result<Vec<AlertRule>, String> {
+        let conn = self.conn().map_err(|e| e.to_string())?;
         let mut stmt = conn.prepare(
             "SELECT id, secid, stock_name, rule_type, threshold, enabled, triggered, created_at
              FROM alert_rules ORDER BY created_at DESC"
-        )?;
+        ).map_err(|e| e.to_string())?;
         let rules = stmt
             .query_map([], |row| {
                 let rule_type_str: String = row.get(3)?;
@@ -254,7 +254,7 @@ impl DbPool {
                     triggered: row.get::<_, i32>(6)? != 0,
                     created_at: row.get(7)?,
                 })
-            })?
+            }).map_err(|e| e.to_string())?
             .filter_map(|r| r.ok())
             .collect();
         Ok(rules)
@@ -268,41 +268,41 @@ impl DbPool {
         stock_name: &str,
         rule_type: &AlertRuleType,
         threshold: f64,
-    ) -> Result<()> {
-        let conn = self.conn()?;
+    ) -> Result<(), String> {
+        let conn = self.conn().map_err(|e| e.to_string())?;
         let now = Utc::now().timestamp();
         conn.execute(
             "INSERT INTO alert_rules (id, secid, stock_name, rule_type, threshold, enabled, triggered, created_at)
              VALUES (?1, ?2, ?3, ?4, ?5, 1, 0, ?6)",
             rusqlite::params![id, secid, stock_name, rule_type.to_str_ex(), threshold.to_string(), now],
-        )?;
+        ).map_err(|e| e.to_string())?;
         Ok(())
     }
 
     /// 删除预警规则
-    pub fn remove_alert_rule(&self, id: &str) -> Result<()> {
-        let conn = self.conn()?;
-        conn.execute("DELETE FROM alert_rules WHERE id = ?1", rusqlite::params![id])?;
+    pub fn remove_alert_rule(&self, id: &str) -> Result<(), String> {
+        let conn = self.conn().map_err(|e| e.to_string())?;
+        conn.execute("DELETE FROM alert_rules WHERE id = ?1", rusqlite::params![id]).map_err(|e| e.to_string())?;
         Ok(())
     }
 
     /// 切换预警规则启用/禁用
-    pub fn toggle_alert_rule(&self, id: &str, enabled: bool) -> Result<()> {
-        let conn = self.conn()?;
+    pub fn toggle_alert_rule(&self, id: &str, enabled: bool) -> Result<(), String> {
+        let conn = self.conn().map_err(|e| e.to_string())?;
         conn.execute(
             "UPDATE alert_rules SET enabled = ?1 WHERE id = ?2",
             rusqlite::params![enabled as i32, id],
-        )?;
+        ).map_err(|e| e.to_string())?;
         Ok(())
     }
 
     /// 标记规则已触发
-    pub fn mark_alert_triggered(&self, id: &str) -> Result<()> {
-        let conn = self.conn()?;
+    pub fn mark_alert_triggered(&self, id: &str) -> Result<(), String> {
+        let conn = self.conn().map_err(|e| e.to_string())?;
         conn.execute(
             "UPDATE alert_rules SET triggered = 1 WHERE id = ?1",
             rusqlite::params![id],
-        )?;
+        ).map_err(|e| e.to_string())?;
         Ok(())
     }
 }

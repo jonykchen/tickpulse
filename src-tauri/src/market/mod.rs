@@ -8,9 +8,6 @@ pub mod ticker_normalizer;
 pub mod trade_calendar;
 pub mod types;
 
-// 重导出常用类型
-pub use data_vendor_router::{DataCapability, DataVendorRouter};
-
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use std::result::Result;

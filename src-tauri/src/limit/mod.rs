@@ -2,7 +2,7 @@
 /// 6板块差异化引擎 + 向上/向下取整 + 历史切换
 pub mod board_type;
 
-use crate::market::exchange::{is_bse, is_chinext, is_star_market, is_st_stock, Exchange};
+use crate::market::exchange::{is_bse, is_chinext, is_star_market, is_st_stock};
 use rust_decimal::prelude::*;
 use rust_decimal::Decimal;
 

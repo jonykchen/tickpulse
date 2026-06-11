@@ -13,6 +13,8 @@ pub enum DbError {
     Sqlite(#[from] rusqlite::Error),
     #[error("Lock poisoned")]
     LockPoisoned,
+    #[error("IO error: {0}")]
+    Io(#[from] std::io::Error),
 }
 
 impl From<std::sync::PoisonError<std::sync::MutexGuard<'_, Connection>>> for DbError {
@@ -25,8 +27,10 @@ pub type Result<T> = std::result::Result<T, DbError>;
 
 /// SQLite 连接池（单连接 + Mutex 模式）
 /// SQLite 为文件级锁，多连接无收益
+#[derive(Clone)]
 pub struct DbPool {
     pub conn: Mutex<Connection>,
+    db_path: std::path::PathBuf,
 }
 
 impl DbPool {
@@ -36,11 +40,30 @@ impl DbPool {
         conn.execute_batch("PRAGMA journal_mode=WAL; PRAGMA foreign_keys=ON;")?;
         Ok(Self {
             conn: Mutex::new(conn),
+            db_path: path.to_path_buf(),
         })
     }
 
     /// 获取连接锁
     pub fn conn(&self) -> Result<std::sync::MutexGuard<'_, Connection>> {
         self.conn.lock().map_err(|_| DbError::LockPoisoned)
+    }
+
+    /// 获取数据库文件大小（字节）
+    pub fn db_file_size(&self) -> Result<u64> {
+        let metadata = std::fs::metadata(&self.db_path)?;
+        Ok(metadata.len())
+    }
+
+    /// 内存数据库（仅供测试使用）
+    #[cfg(test)]
+    pub fn open_in_memory_for_test() -> Self {
+        let conn = Connection::open_in_memory().unwrap();
+        conn.execute_batch("PRAGMA journal_mode=WAL; PRAGMA foreign_keys=ON;")
+            .unwrap();
+        Self {
+            conn: Mutex::new(conn),
+            db_path: std::path::PathBuf::from(":memory:"),
+        }
     }
 }

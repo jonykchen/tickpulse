@@ -14,6 +14,21 @@ const MIGRATIONS: &[Migration] = &[
         description: "initial schema",
         sql: include_str!("migrations/v001_initial.sql"),
     },
+    Migration {
+        version: 2,
+        description: "block trades + northbound cache",
+        sql: include_str!("migrations/v002_block_trades.sql"),
+    },
+    Migration {
+        version: 3,
+        description: "AI analysis engine tables",
+        sql: include_str!("migrations/v003_analysis.sql"),
+    },
+    Migration {
+        version: 4,
+        description: "decision memory v2 for reflection",
+        sql: include_str!("migrations/v004_decision_memory.sql"),
+    },
     // 后续迁移追加在此，版本号递增
 ];
 

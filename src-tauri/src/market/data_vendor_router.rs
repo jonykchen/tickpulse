@@ -449,10 +449,10 @@ impl DataVendorRouter {
 
     /// 检查 Sidecar 是否可用
     pub async fn is_sidecar_available(&self) -> bool {
-        self.sidecar
-            .as_ref()
-            .map(|s| s.is_running().await)
-            .unwrap_or(false)
+        match self.sidecar.as_ref() {
+            Some(s) => s.is_running().await,
+            None => false,
+        }
     }
 }
 

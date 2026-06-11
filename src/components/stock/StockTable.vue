@@ -4,21 +4,39 @@
       <thead>
         <tr>
           <th class="col-name" @click="sortBy('name')">
-            名称 {{ sortKey === 'name' ? (sortOrder === 'asc' ? '↑' : '↓') : '' }}
+            名称 {{ sortIndicator('name') }}
           </th>
           <th class="col-price" @click="sortBy('price')">
-            最新价 {{ sortKey === 'price' ? (sortOrder === 'asc' ? '↑' : '↓') : '' }}
+            最新价 {{ sortIndicator('price') }}
           </th>
           <th class="col-change" @click="sortBy('changePercent')">
-            涨跌幅 {{ sortKey === 'changePercent' ? (sortOrder === 'asc' ? '↑' : '↓') : '' }}
+            涨跌幅 {{ sortIndicator('changePercent') }}
           </th>
-          <th class="col-volume" @click="sortBy('amount')">
-            成交额 {{ sortKey === 'amount' ? (sortOrder === 'asc' ? '↑' : '↓') : '' }}
+          <th class="col-change" @click="sortBy('change')">
+            涨跌额 {{ sortIndicator('change') }}
+          </th>
+          <th class="col-amount" @click="sortBy('amount')">
+            成交额 {{ sortIndicator('amount') }}
           </th>
           <th class="col-turnover" @click="sortBy('turnoverRate')">
-            换手率 {{ sortKey === 'turnoverRate' ? (sortOrder === 'asc' ? '↑' : '↓') : '' }}
+            换手率 {{ sortIndicator('turnoverRate') }}
           </th>
-          <th class="col-ratio">量比</th>
+          <th class="col-ratio" @click="sortBy('volumeRatio')">
+            量比 {{ sortIndicator('volumeRatio') }}
+          </th>
+          <th class="col-pe" @click="sortBy('peTtm')">
+            PE(TTM) {{ sortIndicator('peTtm') }}
+          </th>
+          <th class="col-inflow" @click="sortBy('mainNetInflow')">
+            主力净流入 {{ sortIndicator('mainNetInflow') }}
+          </th>
+          <th class="col-cap" @click="sortBy('totalMarketCap')">
+            总市值 {{ sortIndicator('totalMarketCap') }}
+          </th>
+          <th class="col-high">最高</th>
+          <th class="col-low">最低</th>
+          <th class="col-open">开盘</th>
+          <th class="col-prev">昨收</th>
         </tr>
       </thead>
       <tbody>
@@ -30,19 +48,52 @@
           @contextmenu.prevent="$emit('contextmenu', stock, $event)"
         >
           <td class="col-name">
-            <div class="stock-name">{{ stock.name }}</div>
+            <div class="stock-name">
+              {{ stock.name }}
+              <LimitTag
+                :is-limit-up="stock.isLimitUp"
+                :is-limit-down="stock.isLimitDown"
+                :is-near-limit-up="stock.isNearLimitUp"
+                :seal-strength="stock.sealStrength"
+              />
+              <SuspendTag
+                :is-suspended="stock.isSuspended"
+                :is-temp-suspended="stock.isTempSuspended"
+                :temp-suspend-reason="stock.tempSuspendReason"
+                :temp-suspend-resume-time="stock.tempSuspendResumeTime"
+              />
+              <MarginTag :is-margin-target="stock.isMarginTarget" />
+              <AnomalyBadge
+                :change-speed="stock.changeSpeed"
+                :change-percent="stock.changePercent"
+              />
+              <VolumeRatioNoteTag :note="stock.volumeRatioNote" />
+            </div>
             <div class="stock-code num">{{ stock.code }}</div>
           </td>
           <td class="col-price num" :class="priceClass(stock)">
             {{ formatPrice(stock.price) }}
           </td>
           <td class="col-change num" :class="priceClass(stock)">
-            <div>{{ formatChange(stock.changePercent) }}%</div>
-            <div class="change-amount">{{ formatChange(stock.change) }}</div>
+            {{ formatChangePercent(stock.changePercent) }}
           </td>
-          <td class="col-volume num">{{ formatAmount(stock.amount) }}</td>
+          <td class="col-change num" :class="priceClass(stock)">
+            {{ formatChange(stock.change) }}
+          </td>
+          <td class="col-amount num">{{ formatAmount(stock.amount) }}</td>
           <td class="col-turnover num">{{ stock.turnoverRate.toFixed(2) }}%</td>
-          <td class="col-ratio num">{{ stock.volumeRatio.toFixed(2) }}</td>
+          <td class="col-ratio num">
+            {{ stock.volumeRatio.toFixed(2) }}
+          </td>
+          <td class="col-pe num">{{ stock.peTtm > 0 ? stock.peTtm.toFixed(1) : '--' }}</td>
+          <td class="col-inflow num" :class="inflowClass(stock)">
+            {{ formatAmount(stock.mainNetInflow) }}
+          </td>
+          <td class="col-cap num">{{ formatMarketCap(stock.totalMarketCap) }}</td>
+          <td class="num">{{ formatPrice(stock.high) }}</td>
+          <td class="num">{{ formatPrice(stock.low) }}</td>
+          <td class="num">{{ formatPrice(stock.open) }}</td>
+          <td class="num">{{ formatPrice(stock.preClose) }}</td>
         </tr>
       </tbody>
     </table>
@@ -55,6 +106,18 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
 import type { StockQuote } from "@/types/stock";
+import {
+  formatPrice,
+  formatChangePercent,
+  formatChange,
+  formatAmount,
+  formatMarketCap,
+} from "@/lib/format";
+import LimitTag from "./LimitTag.vue";
+import SuspendTag from "./SuspendTag.vue";
+import MarginTag from "./MarginTag.vue";
+import AnomalyBadge from "./AnomalyBadge.vue";
+import VolumeRatioNoteTag from "./VolumeRatioNoteTag.vue";
 
 const props = defineProps<{
   stocks: StockQuote[];
@@ -75,6 +138,11 @@ function sortBy(key: string) {
     sortKey.value = key;
     sortOrder.value = "desc";
   }
+}
+
+function sortIndicator(key: string): string {
+  if (sortKey.value !== key) return "";
+  return sortOrder.value === "asc" ? "↑" : "↓";
 }
 
 const sortedStocks = computed(() => {
@@ -98,19 +166,10 @@ function priceClass(stock: StockQuote) {
   return "text-flat";
 }
 
-function formatPrice(price: number): string {
-  return price > 0 ? price.toFixed(2) : "--";
-}
-
-function formatChange(val: number): string {
-  if (val > 0) return `+${val.toFixed(2)}`;
-  return val.toFixed(2);
-}
-
-function formatAmount(amount: number): string {
-  if (amount >= 1e8) return (amount / 1e8).toFixed(2) + "亿";
-  if (amount >= 1e4) return (amount / 1e4).toFixed(2) + "万";
-  return amount.toFixed(0);
+function inflowClass(stock: StockQuote) {
+  if (stock.mainNetInflow > 0) return "text-up";
+  if (stock.mainNetInflow < 0) return "text-down";
+  return "";
 }
 </script>
 
@@ -142,7 +201,7 @@ th:hover {
 }
 .col-name {
   text-align: left;
-  min-width: 100px;
+  min-width: 120px;
 }
 td {
   padding: var(--spacing-sm) var(--spacing-md);
@@ -159,14 +218,13 @@ td {
 .stock-name {
   color: var(--color-text-primary);
   font-size: var(--font-size-md);
+  display: flex;
+  align-items: center;
+  gap: 2px;
 }
 .stock-code {
   color: var(--color-text-tertiary);
   font-size: var(--font-size-xs);
-}
-.change-amount {
-  font-size: var(--font-size-xs);
-  opacity: 0.7;
 }
 .empty-state {
   text-align: center;

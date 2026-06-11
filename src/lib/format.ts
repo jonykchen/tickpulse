@@ -56,3 +56,36 @@ export function getMarketTag(code: string): string {
   if (code.startsWith("8") || code.startsWith("4")) return "北";
   return "";
 }
+
+/** 格式化盈亏金额 */
+export function formatPnlAmount(amount: number): string {
+  const prefix = amount > 0 ? "+" : "";
+  return `${prefix}${formatAmount(Math.abs(amount))}`;
+}
+
+/** 格式化百分比（含符号） */
+export function formatPercent(val: number): string {
+  const prefix = val > 0 ? "+" : "";
+  return `${prefix}${val.toFixed(2)}%`;
+}
+
+/** 格式化板块字段 */
+export function formatPlateFields(field: string, value: number): string {
+  switch (field) {
+    case "changePercent":
+      return formatPercent(value);
+    case "amount":
+      return formatAmount(value);
+    case "totalMarketCap":
+      return formatMarketCap(value);
+    default:
+      return value.toFixed(2);
+  }
+}
+
+/** 判断涨跌停标签颜色 */
+export function getLimitColor(isLimitUp: boolean, isLimitDown: boolean): string {
+  if (isLimitUp) return "#f5222d";
+  if (isLimitDown) return "#52c41a";
+  return "";
+}

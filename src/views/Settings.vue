@@ -38,19 +38,23 @@
       <div class="health-info">
         <div class="health-item">
           <span>内存占用</span>
-          <span class="num">{{ health.memory_usage_mb.toFixed(1) }} MB</span>
+          <span class="num">{{ health.memory_rss_mb.toFixed(1) }} MB</span>
         </div>
         <div class="health-item">
           <span>数据库大小</span>
           <span class="num">{{ health.db_size_mb.toFixed(2) }} MB</span>
         </div>
         <div class="health-item">
-          <span>API延迟</span>
-          <span class="num">{{ health.api_latency_ms }} ms</span>
+          <span>上次刷新耗时</span>
+          <span class="num">{{ health.last_refresh_ms }} ms</span>
         </div>
         <div class="health-item">
-          <span>缓存命中率</span>
-          <span class="num">{{ (health.cache_hit_rate * 100).toFixed(1) }}%</span>
+          <span>平均刷新耗时</span>
+          <span class="num">{{ health.avg_refresh_ms }} ms</span>
+        </div>
+        <div class="health-item">
+          <span>运行时长</span>
+          <span class="num">{{ Math.floor(health.uptime_secs / 3600) }}h {{ Math.floor((health.uptime_secs % 3600) / 60) }}m</span>
         </div>
       </div>
     </section>
@@ -69,7 +73,15 @@ const autoStart = ref(configStore.autoStart);
 const minimizeToTray = ref(configStore.minimizeToTray);
 const alertEnabled = ref(configStore.alertEnabled);
 const alertSound = ref(configStore.alertSound);
-const health = ref({ memory_usage_mb: 0, db_size_mb: 0, api_latency_ms: 0, cache_hit_rate: 0, consecutive_errors: 0, last_success_at: null, active_sources: [] as string[], cpu_usage_percent: 0 });
+const health = ref({
+  last_refresh_ms: 0,
+  avg_refresh_ms: 0,
+  emit_latency_ms: 0,
+  circuit_breaker_status: [] as { sourceName: string; state: string; consecutiveFailures: number }[],
+  memory_rss_mb: 0,
+  db_size_mb: 0,
+  uptime_secs: 0,
+});
 
 function onThemeChange() { configStore.updateSetting("theme", theme.value); }
 function onAutoStartChange() { configStore.updateSetting("autoStart", String(autoStart.value)); }

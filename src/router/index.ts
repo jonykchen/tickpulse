@@ -27,6 +27,36 @@ const routes: RouteRecordRaw[] = [
     name: "AnomalyLog",
     component: () => import("@/views/AnomalyLog.vue"),
   },
+  {
+    path: "/analysis",
+    name: "AnalysisDashboard",
+    component: () => import("@/views/AnalysisDashboard.vue"),
+  },
+  {
+    path: "/analysis/peg",
+    name: "PegBoard",
+    component: () => import("@/views/PegBoard.vue"),
+  },
+  {
+    path: "/analysis/report",
+    name: "AnalysisReport",
+    component: () => import("@/views/AnalysisReport.vue"),
+  },
+  {
+    path: "/analysis/industry",
+    name: "IndustryPegComparison",
+    component: () => import("@/views/IndustryPegComparison.vue"),
+  },
+  {
+    path: "/analysis/history",
+    name: "AnalysisHistory",
+    component: () => import("@/views/AnalysisHistory.vue"),
+  },
+  {
+    path: "/suspend",
+    name: "Suspend",
+    component: () => import("@/views/Suspend.vue"),
+  },
 ];
 
 const router = createRouter({

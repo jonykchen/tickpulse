@@ -21,7 +21,7 @@ pub fn open_suspend_window(app: &tauri::AppHandle) {
     .inner_size(220.0, 300.0)
     .decorations(false)
     .always_on_top(true)
-    .transparent(true)
+    // .transparent(true) // Tauri v2 需启用 feature，暂注释
     .skip_taskbar(true)
     .resizable(false)
     .build()

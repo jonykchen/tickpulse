@@ -21,6 +21,7 @@ mod db;
 mod health;
 mod indicator;
 mod limit;
+mod logging;
 mod market;
 mod sidecar;
 mod sync;
@@ -35,12 +36,13 @@ pub(crate) static SHARED_HTTP_CLIENT: Lazy<reqwest::Client> = Lazy::new(|| {
         .expect("Failed to build shared HTTP client")
 });
 
-/// 应用级共享状态（DbPool + DataSourceManager + HealthCollector）
+/// 应用级共享状态（DbPool + DataSourceManager + HealthCollector + LogBuffer）
 /// 通过 Tauri State 注入，所有 Command 共享同一个 DataSourceManager 实例
 pub struct AppState {
     pub db: db::DbPool,
     pub source: Arc<DataSourceManager>,
     pub health: Arc<Mutex<HealthCollector>>,
+    pub log_buffer: Arc<logging::buffer::LogBuffer>,
 }
 
 // ==================== Tauri 命令 ====================
@@ -254,6 +256,29 @@ fn get_health_metrics(state: tauri::State<'_, AppState>) -> Result<health::Healt
     Ok(collector.collect(db_size_bytes, circuit_status))
 }
 
+// ==================== 日志系统 Commands ====================
+
+/// 获取最近日志
+#[tauri::command]
+fn get_recent_logs(state: tauri::State<'_, AppState>, count: Option<usize>) -> Result<Vec<logging::buffer::LogEntry>, String> {
+    let count = count.unwrap_or(100);
+    Ok(state.log_buffer.get_recent(count))
+}
+
+/// 清空日志缓冲区
+#[tauri::command]
+fn clear_logs(state: tauri::State<'_, AppState>) -> Result<(), String> {
+    state.log_buffer.clear();
+    Ok(())
+}
+
+/// 获取日志文件路径
+#[tauri::command]
+fn get_log_file_path(app: tauri::AppHandle) -> Result<String, String> {
+    let app_dir = app.path().app_data_dir().map_err(|e| e.to_string())?;
+    Ok(app_dir.join("logs").to_string_lossy().to_string())
+}
+
 // ==================== 预警规则 Commands ====================
 
 /// 获取预警规则列表
@@ -347,14 +372,17 @@ async fn analyze_stock(
 ) -> Result<analysis::engine::AnalysisResult, String> {
     validate_secid_or_error(&secid)?;
     let engine = analysis::engine::AnalysisEngine::new(Arc::new(state.db.clone()));
-    let config = engine.get_llm_config().unwrap_or(analysis::engine::LlmConfig {
-        provider: analysis::engine::CloudProvider::Anthropic,
-        model: "claude-sonnet-4-6".to_string(),
-        api_key: None,
-        base_url: None,
-        mode: analysis::engine::LlmMode::Cloud,
-    });
-    engine.run(&secid, &stock_name, &config).await
+    let dual_config = engine.get_dual_llm_config().unwrap_or(analysis::engine::DualLlmConfig::from_single(
+        analysis::engine::LlmConfig {
+            provider: analysis::engine::CloudProvider::Anthropic,
+            model: "claude-sonnet-4-6".to_string(),
+            api_key: None,
+            base_url: None,
+            mode: analysis::engine::LlmMode::Cloud,
+            thinking_enabled: false,
+        }
+    ));
+    engine.run(&secid, &stock_name, &dual_config).await
 }
 
 /// 获取分析历史
@@ -383,6 +411,7 @@ fn save_llm_config(
     api_key: Option<String>,
     base_url: Option<String>,
     mode: String,
+    thinking_enabled: Option<bool>,
     state: tauri::State<'_, AppState>,
 ) -> Result<(), String> {
     let engine = analysis::engine::AnalysisEngine::new(Arc::new(state.db.clone()));
@@ -392,8 +421,81 @@ fn save_llm_config(
         api_key,
         base_url,
         mode: if mode == "local" { analysis::engine::LlmMode::Local } else { analysis::engine::LlmMode::Cloud },
+        thinking_enabled: thinking_enabled.unwrap_or(false),
     };
     engine.save_llm_config(&config)
+}
+
+/// 获取双 LLM 配置（Quick-Think + Deep-Think）
+#[tauri::command]
+fn get_dual_llm_config(state: tauri::State<'_, AppState>) -> Result<analysis::engine::DualLlmConfig, String> {
+    let engine = analysis::engine::AnalysisEngine::new(Arc::new(state.db.clone()));
+    engine.get_dual_llm_config()
+}
+
+/// 保存双 LLM 配置
+#[tauri::command]
+fn save_dual_llm_config(
+    quick_provider: String,
+    quick_model: String,
+    quick_api_key: Option<String>,
+    quick_base_url: Option<String>,
+    quick_mode: String,
+    quick_thinking_enabled: Option<bool>,
+    deep_provider: Option<String>,
+    deep_model: Option<String>,
+    deep_api_key: Option<String>,
+    deep_base_url: Option<String>,
+    deep_mode: Option<String>,
+    deep_thinking_enabled: Option<bool>,
+    state: tauri::State<'_, AppState>,
+) -> Result<(), String> {
+    let engine = analysis::engine::AnalysisEngine::new(Arc::new(state.db.clone()));
+    let quick_think = analysis::engine::LlmConfig {
+        provider: analysis::engine::CloudProvider::from_str(&quick_provider),
+        model: quick_model,
+        api_key: quick_api_key,
+        base_url: quick_base_url,
+        mode: if quick_mode == "local" { analysis::engine::LlmMode::Local } else { analysis::engine::LlmMode::Cloud },
+        thinking_enabled: quick_thinking_enabled.unwrap_or(false),
+    };
+    let deep_think = match (deep_provider, deep_model) {
+        (Some(p), Some(m)) => Some(analysis::engine::LlmConfig {
+            provider: analysis::engine::CloudProvider::from_str(&p),
+            model: m,
+            api_key: deep_api_key,
+            base_url: deep_base_url,
+            mode: if deep_mode.as_deref() == Some("local") { analysis::engine::LlmMode::Local } else { analysis::engine::LlmMode::Cloud },
+            thinking_enabled: deep_thinking_enabled.unwrap_or(false),
+        }),
+        _ => None,
+    };
+    let dual_config = analysis::engine::DualLlmConfig { quick_think, deep_think };
+    engine.save_dual_llm_config(&dual_config)
+}
+
+/// 获取支持的 LLM 供应商列表
+#[tauri::command]
+fn get_supported_providers() -> Vec<serde_json::Value> {
+    use analysis::engine::CloudProvider;
+    let providers = [
+        (CloudProvider::Anthropic, "Anthropic Claude", true),
+        (CloudProvider::OpenAI, "OpenAI GPT", true),
+        (CloudProvider::DeepSeek, "DeepSeek", true),
+        (CloudProvider::Qwen, "通义千问 Qwen", true),
+        (CloudProvider::GLM, "智谱 GLM", true),
+        (CloudProvider::MiniMax, "MiniMax", true),
+        (CloudProvider::Ollama, "Ollama (本地)", false),
+    ];
+    providers.iter().map(|(p, name, supports_structured)| {
+        serde_json::json!({
+            "id": p.as_str(),
+            "name": name,
+            "default_base_url": p.default_base_url(),
+            "is_openai_compat": p.is_openai_compat(),
+            "supports_structured_output": supports_structured,
+        })
+    }).collect()
 }
 
 /// 获取分析预设列表
@@ -680,11 +782,13 @@ pub fn run() {
         ))
         .plugin(tauri_plugin_global_shortcut::Builder::new().build())
         .setup(|app| {
-            // 初始化日志（try_init 避免重复初始化 panic）
-            let _ = tracing_subscriber::fmt::try_init();
+            // 初始化日志系统（带文件输出和内存缓冲区）
+            let app_dir = app.path().app_data_dir()?;
+            let log_buffer = logging::buffer::LogBuffer::new();
+            let log_layer = logging::buffer::LogBufferLayer::new(log_buffer.clone());
+            logging::init_logging(&app_dir, log_layer);
 
             // 初始化数据库
-            let app_dir = app.path().app_data_dir()?;
             std::fs::create_dir_all(&app_dir)?;
             let db_path = app_dir.join(config::constants::DB_NAME);
             let pool = db::DbPool::open(&db_path)?;
@@ -710,6 +814,7 @@ pub fn run() {
                 db: pool,
                 source: source.clone(),
                 health: health.clone(),
+                log_buffer,
             };
             app.manage(app_state);
 
@@ -785,6 +890,9 @@ pub fn run() {
             get_analysis_history,
             get_llm_config,
             save_llm_config,
+            get_dual_llm_config,
+            save_dual_llm_config,
+            get_supported_providers,
             get_analysis_presets,
             calc_peg,
             calc_cagr,
@@ -801,6 +909,10 @@ pub fn run() {
             close_suspend_window,
             // 北向资金
             get_northbound_cache,
+            // 日志系统
+            get_recent_logs,
+            clear_logs,
+            get_log_file_path,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

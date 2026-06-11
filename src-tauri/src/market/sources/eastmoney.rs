@@ -1,7 +1,10 @@
 use crate::config::constants;
+use crate::limit::board_type::BoardType;
+use crate::limit::board_type::StockStatus;
+use crate::market::exchange::is_st_stock;
 use crate::market::{
     AdjustType, ExRightInfo, KlineBar, KlinePeriod, MarketDataSource, SearchResult, StockQuote,
-    TimelineData, TimelinePoint,
+    TimelineData, TimelinePoint, VolumeRatioNote,
 };
 use async_trait::async_trait;
 
@@ -33,6 +36,7 @@ impl EastMoneySource {
     /// 解析行情数据
     fn parse_quotes(data: &serde_json::Value) -> Vec<StockQuote> {
         let mut quotes = Vec::new();
+        let today = chrono::Local::now().date_naive();
 
         if let Some(diff) = data.get("data").and_then(|d| d.get("diff")).and_then(|d| d.as_array()) {
             for item in diff {
@@ -44,38 +48,105 @@ impl EastMoneySource {
                     .to_string();
                 let secid = format!("{}.{}", market, code);
 
+                let name = item
+                    .get("f14")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("")
+                    .to_string();
                 let price = item.get("f2").and_then(|v| v.as_f64()).unwrap_or(0.0);
                 let pre_close = item.get("f18").and_then(|v| v.as_f64()).unwrap_or(0.0);
                 let is_suspended = price <= 0.0 || item.get("f6").and_then(|v| v.as_f64()).unwrap_or(0.0) == 0.0;
+                let change_percent = item.get("f3").and_then(|v| v.as_f64()).unwrap_or(0.0);
+
+                // 板块类型 + 涨跌停价计算
+                let board_type = BoardType::from_code(&code);
+                let is_st = is_st_stock(&name);
+                let stock_status = if is_st {
+                    StockStatus::ST
+                } else if is_suspended {
+                    StockStatus::Suspended
+                } else {
+                    StockStatus::Normal
+                };
+                let limit_rate = board_type.limit_rate(is_st);
+                let limit_up_price = if pre_close > 0.0 && !is_suspended {
+                    Some(crate::limit::calc_limit_up_price(pre_close, limit_rate))
+                } else {
+                    None
+                };
+                let limit_down_price = if pre_close > 0.0 && !is_suspended {
+                    Some(crate::limit::calc_limit_down_price(pre_close, limit_rate))
+                } else {
+                    None
+                };
+                let is_limit_up = limit_up_price
+                    .map(|lp| price > 0.0 && (price - lp).abs() < 0.02)
+                    .unwrap_or(false);
+                let is_limit_down = limit_down_price
+                    .map(|dp| price > 0.0 && (price - dp).abs() < 0.02)
+                    .unwrap_or(false);
+                let is_near_limit_up = !is_limit_up
+                    && change_percent >= limit_rate * 0.8
+                    && change_percent < limit_rate;
 
                 quotes.push(StockQuote {
                     secid,
                     code,
-                    name: item
-                        .get("f14")
-                        .and_then(|v| v.as_str())
-                        .unwrap_or("")
-                        .to_string(),
+                    name,
                     price: if price < 0.0 { 0.0 } else { price },
                     change: item.get("f4").and_then(|v| v.as_f64()).unwrap_or(0.0),
-                    change_percent: item.get("f3").and_then(|v| v.as_f64()).unwrap_or(0.0),
+                    change_percent,
                     volume: item.get("f5").and_then(|v| v.as_i64()).unwrap_or(0),
                     amount: item.get("f6").and_then(|v| v.as_f64()).unwrap_or(0.0),
-                    turnover_rate: item.get("f8").and_then(|v| v.as_f64()).unwrap_or(0.0),
-                    volume_ratio: item.get("f10").and_then(|v| v.as_f64()).unwrap_or(0.0),
                     high: item.get("f15").and_then(|v| v.as_f64()).unwrap_or(0.0),
                     low: item.get("f16").and_then(|v| v.as_f64()).unwrap_or(0.0),
                     open: item.get("f17").and_then(|v| v.as_f64()).unwrap_or(0.0),
                     pre_close,
                     total_market_cap: item.get("f20").and_then(|v| v.as_f64()).unwrap_or(0.0),
-                    pe_ttm: item.get("f9").and_then(|v| v.as_f64()).unwrap_or(0.0),
-                    pe_static: item.get("f23").and_then(|v| v.as_f64()).unwrap_or(0.0),
-                    pb: item.get("f136").and_then(|v| v.as_f64()).unwrap_or(0.0),
-                    change_speed: item.get("f22").and_then(|v| v.as_f64()).unwrap_or(0.0),
-                    ytd_change: item.get("f25").and_then(|v| v.as_f64()).unwrap_or(0.0),
                     main_net_inflow: item.get("f62").and_then(|v| v.as_f64()).unwrap_or(0.0),
                     market,
+
+                    // 换手率
+                    turnover_rate: item.get("f8").and_then(|v| v.as_f64()).unwrap_or(0.0),
+                    total_turnover_rate: None, // 东财不提供总换手率，需其他数据源
+
+                    // 市盈率
+                    pe_ttm: item.get("f9").and_then(|v| v.as_f64()).unwrap_or(0.0), // ⚠️ 东财f9实测返回TTM
+                    pe_dynamic: None, // 东财不单独提供动态PE
+                    pe_static: item.get("f23").and_then(|v| v.as_f64()).unwrap_or(0.0),
+                    pb: item.get("f136").and_then(|v| v.as_f64()).unwrap_or(0.0),
+
+                    // 量比
+                    volume_ratio: item.get("f10").and_then(|v| v.as_f64()).unwrap_or(0.0),
+                    volume_ratio_note: None, // 在调度器中根据时间设置
+
+                    // 其他指标
+                    change_speed: item.get("f22").and_then(|v| v.as_f64()).unwrap_or(0.0),
+                    ytd_change: item.get("f25").and_then(|v| v.as_f64()).unwrap_or(0.0),
+
+                    // 涨跌停/停牌
+                    board_type,
+                    stock_status,
+                    is_limit_up,
+                    is_limit_down,
+                    is_near_limit_up,
+                    limit_up_price,
+                    limit_down_price,
                     is_suspended,
+
+                    // 新股临停（需异动引擎或实时数据判断，默认 false）
+                    is_temp_suspended: false,
+                    temp_suspend_reason: None,
+                    temp_suspend_resume_time: None,
+
+                    // 封板信息（需从分时数据计算，默认值）
+                    seal_strength: None,
+                    seal_break_count: 0,
+
+                    // 融资融券（需其他数据源，默认值）
+                    is_margin_target: false,
+                    margin_balance: None,
+                    short_volume: None,
                 });
             }
         }
@@ -387,5 +458,13 @@ mod tests {
         assert_eq!(quotes[0].secid, "0.000001");
         assert_eq!(quotes[0].name, "平安银行");
         assert!((quotes[0].price - 10.5).abs() < 0.01);
+        // 验证涨跌停价计算
+        assert!(quotes[0].limit_up_price.is_some());
+        assert!(quotes[0].limit_down_price.is_some());
+        assert!(!quotes[0].is_limit_up); // 涨幅1.5%未触涨停
+        assert!(!quotes[0].is_limit_down);
+        // 验证板块类型
+        assert_eq!(quotes[0].board_type, BoardType::MainBoardSZ);
+        assert_eq!(quotes[0].stock_status, StockStatus::Normal);
     }
 }

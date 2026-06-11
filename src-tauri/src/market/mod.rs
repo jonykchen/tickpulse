@@ -1,8 +1,15 @@
+pub mod data_vendor_router;
 pub mod exchange;
+pub mod field_registry;
+pub mod northbound_cache;
 pub mod scheduler;
 pub mod sources;
+pub mod ticker_normalizer;
 pub mod trade_calendar;
 pub mod types;
+
+// 重导出常用类型
+pub use data_vendor_router::{DataCapability, DataVendorRouter};
 
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
@@ -39,10 +46,22 @@ pub trait MarketDataSource: Send + Sync {
     fn priority(&self) -> u8;
 }
 
+use crate::limit::board_type::BoardType;
+use crate::limit::board_type::StockStatus;
+
+/// 量比衰减提示（v2.0）
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "lowercase")]
+pub enum VolumeRatioNote {
+    /// 开盘30分钟内，量比偏高，参考价值有限
+    Early,
+}
+
 // ==================== 通用数据类型 ====================
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct StockQuote {
+    // ── 基础字段 ──
     pub secid: String,
     pub code: String,
     pub name: String,
@@ -51,21 +70,55 @@ pub struct StockQuote {
     pub change_percent: f64,
     pub volume: i64,
     pub amount: f64,
-    pub turnover_rate: f64,
-    pub volume_ratio: f64,
     pub high: f64,
     pub low: f64,
     pub open: f64,
     pub pre_close: f64,
     pub total_market_cap: f64,
-    pub pe_ttm: f64,
-    pub pe_static: f64,
-    pub pb: f64,
-    pub change_speed: f64,
-    pub ytd_change: f64,
     pub main_net_inflow: f64,
     pub market: i64,
-    pub is_suspended: bool,
+
+    // ── 换手率（v2.0: 区分流通/总） ──
+    pub turnover_rate: f64,              // 流通换手率（东方财富 f8，常用）
+    pub total_turnover_rate: Option<f64>, // 总换手率（v2.0 新增）
+
+    // ── 市盈率（v2.0: 三种 PE） ──
+    pub pe_ttm: f64,                     // TTM 市盈率（最常用，默认展示）
+    pub pe_dynamic: Option<f64>,         // 动态市盈率（东方财富 f9，实测为 TTM）
+    pub pe_static: f64,                  // 静态市盈率（上年度 EPS）
+    pub pb: f64,                         // 市净率
+
+    // ── 量比（v2.0: 衰减标记） ──
+    pub volume_ratio: f64,
+    pub volume_ratio_note: Option<VolumeRatioNote>, // 衰减提示
+
+    // ── 其他指标 ──
+    pub change_speed: f64,               // 涨速
+    pub ytd_change: f64,                 // 年初至今涨幅
+
+    // ── 涨跌停/停牌 ──
+    pub board_type: BoardType,           // 板块类型
+    pub stock_status: StockStatus,       // 股票状态
+    pub is_limit_up: bool,               // 是否涨停
+    pub is_limit_down: bool,             // 是否跌停
+    pub is_near_limit_up: bool,          // 是否接近涨停（涨幅≥8%）
+    pub limit_up_price: Option<f64>,     // 涨停价
+    pub limit_down_price: Option<f64>,   // 跌停价
+    pub is_suspended: bool,              // 是否停牌
+
+    // ── 新股临停（v2.0） ──
+    pub is_temp_suspended: bool,         // 是否临时停牌
+    pub temp_suspend_reason: Option<String>, // 临停原因
+    pub temp_suspend_resume_time: Option<i64>, // 预计恢复时间
+
+    // ── 封板信息 ──
+    pub seal_strength: Option<f64>,      // 封板强度 0.0-1.0
+    pub seal_break_count: u32,           // 炸板次数
+
+    // ── 融资融券（v2.0） ──
+    pub is_margin_target: bool,          // 是否为两融标的
+    pub margin_balance: Option<f64>,     // 融资余额（亿元）
+    pub short_volume: Option<f64>,       // 融券余量（万股）
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
@@ -173,10 +226,18 @@ impl MarketSummary {
         let mut up = 0i32;
         let mut down = 0i32;
         let mut flat = 0i32;
+        let mut limit_up = 0i32;
+        let mut limit_down = 0i32;
         for q in quotes {
             if q.is_suspended {
                 continue;
             }
+            if q.is_limit_up {
+                limit_up += 1;
+            } else if q.is_limit_down {
+                limit_down += 1;
+            }
+
             if q.change_percent > 0.0 {
                 up += 1;
             } else if q.change_percent < 0.0 {
@@ -189,8 +250,8 @@ impl MarketSummary {
             up_count: up,
             down_count: down,
             flat_count: flat,
-            limit_up_count: 0,
-            limit_down_count: 0,
+            limit_up_count: limit_up,
+            limit_down_count: limit_down,
         }
     }
 }
@@ -201,4 +262,19 @@ pub struct SchedulerStatus {
     pub phase: String,
     pub interval_secs: u64,
     pub is_trading_day: bool,
+}
+
+/// 大宗交易记录
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BlockTrade {
+    pub secid: String,
+    pub code: String,
+    pub name: String,
+    pub trade_date: String,
+    pub price: f64,
+    pub volume: f64,
+    pub amount: f64,
+    pub buyer: Option<String>,
+    pub seller: Option<String>,
+    pub premium_rate: Option<f64>,
 }

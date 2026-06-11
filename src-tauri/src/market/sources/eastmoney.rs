@@ -280,7 +280,7 @@ impl MarketDataSource for EastMoneySource {
     }
 
     async fn fetch_exrights(&self, secid: &str) -> Result<Vec<ExRightInfo>, String> {
-        let (market, code) = secid
+        let (_market, _code) = secid
             .split_once('.')
             .unwrap_or(("0", ""));
         let url = format!(

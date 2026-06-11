@@ -1,6 +1,6 @@
 use crate::config::constants;
 use crate::db::DbPool;
-use chrono::{Local, NaiveDate, Weekday};
+use chrono::{Datelike, Local, NaiveDate, Weekday};
 use std::collections::HashSet;
 use std::sync::Arc;
 

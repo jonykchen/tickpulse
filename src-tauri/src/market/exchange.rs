@@ -74,7 +74,7 @@ pub fn is_bse(code: &str) -> bool {
 
 /// 判断是否为ST股（含全角星号/退市前缀）
 pub fn is_st_stock(name: &str) -> bool {
-    let pattern = regex::Regex::new(r"[SＳ][TＴ]|[\*＊]ST|退[A-Z]").unwrap();
+    let pattern = regex::Regex::new(r"[SＳ][TＴ]|[\*＊]ST|退[市A-Za-z]").unwrap();
     pattern.is_match(name)
 }
 

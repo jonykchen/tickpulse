@@ -1,12 +1,12 @@
 use crate::db::DbPool;
 use crate::market::exchange::Exchange;
 use crate::market::sources::eastmoney::EastMoneySource;
-use crate::market::types::{MarketPhase, MarketSummary, SchedulerStatus};
-use crate::market::MarketDataSource;
-use crate::market::StockQuote;
+use crate::market::types::MarketPhase;
+use crate::market::{MarketDataSource, MarketSummary, SchedulerStatus, StockQuote};
 use dashmap::DashMap;
 use std::sync::Arc;
 use std::time::Duration;
+use tauri::Emitter;
 use tokio::sync::RwLock;
 use tokio_util::sync::CancellationToken;
 
@@ -46,16 +46,14 @@ impl MarketScheduler {
         *self.current_phase.write().await = phase;
 
         // 推送调度器状态
-        self.app_handle
-            .emit(
-                "scheduler-status",
-                SchedulerStatus {
-                    phase: phase.display_name().to_string(),
-                    interval_secs: phase.refresh_interval().as_secs(),
-                    is_trading_day,
-                },
-            )
-            .ok();
+        let _ = self.app_handle.emit(
+            "scheduler-status",
+            SchedulerStatus {
+                phase: phase.display_name().to_string(),
+                interval_secs: phase.refresh_interval().as_secs(),
+                is_trading_day,
+            },
+        );
 
         let interval = phase.refresh_interval();
 
@@ -131,12 +129,12 @@ impl MarketScheduler {
 
         // 推送增量数据
         if !changed.is_empty() {
-            self.app_handle.emit("stock-update", &changed).ok();
+            let _ = self.app_handle.emit("stock-update", &changed);
         }
 
         // 推送涨跌家数摘要
         let summary = MarketSummary::from_quotes(&quotes);
-        self.app_handle.emit("market-summary", &summary).ok();
+        let _ = self.app_handle.emit("market-summary", &summary);
 
         Ok(())
     }

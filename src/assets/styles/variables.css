@@ -1,0 +1,66 @@
+:root {
+  /* 颜色系统 - 暗色主题 */
+  --color-bg: #1a1a2e;
+  --color-bg-secondary: #16213e;
+  --color-bg-tertiary: #0f3460;
+  --color-surface: #1e1e3a;
+  --color-surface-hover: #2a2a4a;
+
+  /* 文字颜色 */
+  --color-text-primary: #e0e0e0;
+  --color-text-secondary: #a0a0b0;
+  --color-text-tertiary: #707080;
+
+  /* 涨跌颜色 - A股红涨绿跌 */
+  --color-up: #e74c3c;
+  --color-up-bg: rgba(231, 76, 60, 0.1);
+  --color-down: #2ecc71;
+  --color-down-bg: rgba(46, 204, 113, 0.1);
+  --color-flat: #95a5a6;
+
+  /* 强调色 */
+  --color-primary: #3498db;
+  --color-primary-hover: #2980b9;
+  --color-warning: #f39c12;
+  --color-danger: #e74c3c;
+  --color-success: #2ecc71;
+
+  /* 涨跌停 */
+  --color-limit-up: #ff4444;
+  --color-limit-down: #00cc66;
+
+  /* 封板 */
+  --color-seal-strong: #ff2222;
+  --color-seal-weak: #ff8888;
+
+  /* 异动 */
+  --color-anomaly-surge: #ff6600;
+  --color-anomaly-dive: #00aa44;
+  --color-anomaly-volume: #ffaa00;
+
+  /* 间距 */
+  --spacing-xs: 2px;
+  --spacing-sm: 4px;
+  --spacing-md: 8px;
+  --spacing-lg: 16px;
+  --spacing-xl: 24px;
+
+  /* 圆角 */
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+
+  /* 字体 */
+  --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+    "PingFang SC", "Microsoft YaHei", sans-serif;
+  --font-mono: "SF Mono", "Fira Code", "Consolas", monospace;
+  --font-size-xs: 11px;
+  --font-size-sm: 12px;
+  --font-size-md: 13px;
+  --font-size-lg: 14px;
+  --font-size-xl: 16px;
+
+  /* 动画 */
+  --transition-fast: 0.15s ease;
+  --transition-normal: 0.25s ease;
+}

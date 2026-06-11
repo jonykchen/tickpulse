@@ -93,13 +93,6 @@ CREATE TABLE search_history (
     searched_at INTEGER NOT NULL
 );
 
--- 迁移版本记录
-CREATE TABLE migrations (
-    version INTEGER PRIMARY KEY,
-    applied_at INTEGER NOT NULL,
-    description TEXT
-);
-
 -- 插入默认分组
 INSERT INTO watchlist_groups (name, sort_order, created_at, updated_at)
 VALUES ('默认', 0, strftime('%s','now'), strftime('%s','now'));

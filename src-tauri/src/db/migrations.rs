@@ -59,13 +59,16 @@ pub fn run(pool: &DbPool) -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::path::PathBuf;
-    use tempfile::tempdir;
+    use rusqlite::Connection;
+    use std::sync::Mutex;
 
     fn test_pool() -> DbPool {
-        let dir = tempdir().unwrap();
-        let db_path = dir.path().join("test.db");
-        DbPool::open(&db_path).unwrap()
+        let conn = Connection::open_in_memory().unwrap();
+        conn.execute_batch("PRAGMA journal_mode=WAL; PRAGMA foreign_keys=ON;")
+            .unwrap();
+        DbPool {
+            conn: Mutex::new(conn),
+        }
     }
 
     #[test]
@@ -93,9 +96,12 @@ mod tests {
         run(&pool).unwrap();
 
         let conn = pool.conn().unwrap();
-        let tables: Vec<String> = conn
-            .prepare("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name")?
-            .query_map([], |row| row.get(0))?
+        let mut stmt = conn
+            .prepare("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name")
+            .unwrap();
+        let tables: Vec<String> = stmt
+            .query_map([], |row| row.get(0))
+            .unwrap()
             .filter_map(|r| r.ok())
             .collect();
 

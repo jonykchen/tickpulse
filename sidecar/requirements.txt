@@ -1,0 +1,20 @@
+# TickPulse Python Sidecar 依赖
+# 数据抓取 + 编码处理 + 解析
+
+# HTTP 客户端
+requests>=2.31.0
+httpx>=0.25.0
+
+# 编码处理
+chardet>=5.2.0
+
+# HTML 解析
+lxml>=4.9.0
+beautifulsoup4>=4.12.0
+
+# 数据处理
+pandas>=2.1.0
+numpy>=1.24.0
+
+# 日期处理
+python-dateutil>=2.8.0

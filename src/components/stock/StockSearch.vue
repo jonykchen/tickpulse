@@ -1,13 +1,16 @@
 <template>
   <div class="stock-search">
-    <input
-      v-model="keyword"
-      class="search-input"
-      type="text"
-      placeholder="搜索股票代码/名称"
-      @input="onInput"
-      @keydown.enter="doSearch"
-    />
+    <div class="search-wrapper">
+      <input
+        v-model="keyword"
+        class="search-input"
+        type="text"
+        placeholder="搜索股票代码/名称..."
+        @input="onInput"
+        @keydown.enter="doSearch"
+      />
+      <button class="search-btn" @click="doSearch">搜索</button>
+    </div>
     <div v-if="results.length > 0" class="search-results">
       <div
         v-for="item in results"
@@ -65,50 +68,88 @@ async function addStock(item: { secid: string; code: string; name: string }) {
 .stock-search {
   position: relative;
 }
+.search-wrapper {
+  display: flex;
+  gap: var(--spacing-sm);
+}
 .search-input {
-  width: 100%;
+  flex: 1;
   padding: var(--spacing-sm) var(--spacing-md);
   background: var(--color-surface);
-  border: 1px solid var(--color-bg-tertiary);
+  border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
   color: var(--color-text-primary);
   font-size: var(--font-size-md);
   outline: none;
-  transition: border-color var(--transition-fast);
+  transition: all var(--duration-fast) var(--ease-out);
 }
 .search-input:focus {
   border-color: var(--color-primary);
+  box-shadow: var(--shadow-glow-primary);
 }
 .search-input::placeholder {
   color: var(--color-text-tertiary);
 }
+.search-btn {
+  padding: var(--spacing-sm) var(--spacing-lg);
+  background: var(--color-primary);
+  border: none;
+  border-radius: var(--radius-md);
+  color: white;
+  font-size: var(--font-size-md);
+  cursor: pointer;
+  transition: all var(--duration-fast);
+}
+.search-btn:hover {
+  background: var(--color-primary-hover);
+}
 .search-results {
   position: absolute;
-  top: 100%;
+  top: calc(100% + 4px);
   left: 0;
   right: 0;
-  background: var(--color-surface);
-  border: 1px solid var(--color-bg-tertiary);
-  border-radius: var(--radius-md);
+  background: var(--glass-bg);
+  backdrop-filter: var(--blur-md);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
   max-height: 300px;
   overflow-y: auto;
   z-index: 100;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  box-shadow: var(--shadow-lg);
+  animation: dropdown-enter var(--duration-fast) var(--ease-out);
+}
+@keyframes dropdown-enter {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 .search-item {
   display: flex;
   justify-content: space-between;
-  padding: var(--spacing-sm) var(--spacing-md);
+  align-items: center;
+  padding: var(--spacing-md);
   cursor: pointer;
-  transition: background var(--transition-fast);
+  transition: all var(--duration-fast) var(--ease-out);
+  border-bottom: 1px solid var(--color-border);
+}
+.search-item:last-child {
+  border-bottom: none;
 }
 .search-item:hover {
   background: var(--color-surface-hover);
+  transform: translateX(4px);
 }
 .search-item__name {
   color: var(--color-text-primary);
+  font-size: var(--font-size-md);
 }
 .search-item__code {
   color: var(--color-text-tertiary);
+  font-size: var(--font-size-sm);
 }
 </style>

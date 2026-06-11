@@ -74,7 +74,7 @@
           <td class="col-price num" :class="priceClass(stock)">
             {{ formatPrice(stock.price) }}
           </td>
-          <td class="col-change num" :class="priceClass(stock)">
+          <td class="col-change num" :class="changeClass(stock)">
             {{ formatChangePercent(stock.changePercent) }}
           </td>
           <td class="col-change num" :class="priceClass(stock)">
@@ -86,7 +86,7 @@
             {{ stock.volumeRatio.toFixed(2) }}
           </td>
           <td class="col-pe num">{{ stock.peTtm > 0 ? stock.peTtm.toFixed(1) : '--' }}</td>
-          <td class="col-inflow num" :class="inflowClass(stock)">
+          <td class="col-inflow num" :class="inflowBgClass(stock)">
             {{ formatAmount(stock.mainNetInflow) }}
           </td>
           <td class="col-cap num">{{ formatMarketCap(stock.totalMarketCap) }}</td>
@@ -160,15 +160,15 @@ const sortedStocks = computed(() => {
   return arr;
 });
 
-function priceClass(stock: StockQuote) {
-  if (stock.changePercent > 0) return "text-up";
-  if (stock.changePercent < 0) return "text-down";
+function changeClass(stock: StockQuote) {
+  if (stock.changePercent > 0) return "col-change-pos text-up";
+  if (stock.changePercent < 0) return "col-change-neg text-down";
   return "text-flat";
 }
 
-function inflowClass(stock: StockQuote) {
-  if (stock.mainNetInflow > 0) return "text-up";
-  if (stock.mainNetInflow < 0) return "text-down";
+function inflowBgClass(stock: StockQuote) {
+  if (stock.mainNetInflow > 0) return "col-inflow-pos text-up";
+  if (stock.mainNetInflow < 0) return "col-inflow-neg text-down";
   return "";
 }
 </script>
@@ -195,9 +195,20 @@ th {
   top: 0;
   background: var(--color-bg);
   z-index: 1;
+  transition: color var(--duration-fast);
 }
 th:hover {
   color: var(--color-text-secondary);
+}
+th.sortable-asc::after {
+  content: " ↑";
+  color: var(--color-primary);
+  font-size: 10px;
+}
+th.sortable-desc::after {
+  content: " ↓";
+  color: var(--color-primary);
+  font-size: 10px;
 }
 .col-name {
   text-align: left;
@@ -206,29 +217,62 @@ th:hover {
 td {
   padding: var(--spacing-sm) var(--spacing-md);
   text-align: right;
-  border-bottom: 1px solid var(--color-bg-secondary);
+  border-bottom: 1px solid var(--color-border);
 }
 .stock-row {
   cursor: pointer;
-  transition: background var(--transition-fast);
+  transition: all var(--duration-fast) var(--ease-out);
+  position: relative;
 }
 .stock-row:hover {
   background: var(--color-surface-hover);
+  box-shadow: var(--shadow-md);
+  transform: translateX(4px);
+  z-index: 1;
+}
+.stock-row:active {
+  transform: translateX(2px);
+  box-shadow: var(--shadow-sm);
+}
+/* 涨跌幅背景色带 */
+.col-change-pos {
+  background: linear-gradient(90deg, var(--color-up-bg) 0%, transparent 70%);
+}
+.col-change-neg {
+  background: linear-gradient(90deg, var(--color-down-bg) 0%, transparent 70%);
+}
+/* 主力净流入背景 */
+.col-inflow-pos {
+  background: linear-gradient(90deg, var(--color-up-bg) 0%, transparent 70%);
+}
+.col-inflow-neg {
+  background: linear-gradient(90deg, var(--color-down-bg) 0%, transparent 70%);
 }
 .stock-name {
   color: var(--color-text-primary);
   font-size: var(--font-size-md);
   display: flex;
   align-items: center;
-  gap: 2px;
+  gap: 4px;
+  flex-wrap: wrap;
 }
 .stock-code {
   color: var(--color-text-tertiary);
   font-size: var(--font-size-xs);
+  margin-top: 2px;
 }
 .empty-state {
   text-align: center;
   padding: var(--spacing-xl) 0;
   color: var(--color-text-tertiary);
+}
+
+/* 异动闪烁动画 */
+@keyframes pulse-anomaly {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
+.stock-row.has-anomaly {
+  animation: pulse-anomaly 2s infinite;
 }
 </style>

@@ -28,7 +28,6 @@
 <script setup lang="ts">
 import { ref, computed } from "vue";
 import { NModal, NInput, NButton } from "naive-ui";
-import { useMarketStore } from "@/stores/market";
 import { getWatchlistGroups, createWatchlistGroup, deleteWatchlistGroup as deleteGroupApi } from "@/lib/tauri";
 
 const visible = computed({

@@ -127,15 +127,21 @@ onMounted(async () => {
     });
     unlisteners.push(unlisten1);
 
-    // 调度器状态事件
+    // 调度器状态事件 - 更新 marketStore
     const unlisten2 = await listen<SchedulerStatus>("scheduler-status", (event) => {
       schedulerStatus.value = event.payload;
+      marketStore.updatePhase({
+        phase: event.payload.phase,
+        intervalSecs: event.payload.intervalSecs,
+        isTradingDay: event.payload.isTradingDay,
+      });
     });
     unlisteners.push(unlisten2);
 
-    // 市场概况事件
+    // 市场概况事件 - 更新 marketStore
     const unlisten3 = await listen<MarketSummary>("market-summary", (event) => {
       marketSummary.value = event.payload;
+      marketStore.updateMarketSummary(event.payload);
     });
     unlisteners.push(unlisten3);
 

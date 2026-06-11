@@ -110,11 +110,27 @@ export interface PegData {
 
 /** LLM 配置 */
 export interface LlmConfig {
-  provider: "anthropic" | "openai" | "deepseek" | "ollama";
+  provider: "anthropic" | "openai" | "deepseek" | "ollama" | "qwen" | "glm" | "minimax";
   model: string;
   apiKey: string | null;
   baseUrl: string | null;
   mode: "cloud" | "local";
+  thinkingEnabled: boolean;
+}
+
+/** 双 LLM 配置（Quick-Think + Deep-Think） */
+export interface DualLlmConfig {
+  quickThink: LlmConfig;
+  deepThink: LlmConfig | null;
+}
+
+/** 支持的供应商信息 */
+export interface SupportedProvider {
+  id: string;
+  name: string;
+  defaultBaseUrl: string;
+  isOpenaiCompat: boolean;
+  supportsStructuredOutput: boolean;
 }
 
 /** 分析预设 */

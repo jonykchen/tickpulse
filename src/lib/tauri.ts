@@ -34,6 +34,16 @@ export async function getWatchlistGroups(): Promise<
   return invoke("get_watchlist_groups");
 }
 
+/** 创建自选股分组 */
+export async function createWatchlistGroup(name: string): Promise<void> {
+  return invoke("create_watchlist_group", { name });
+}
+
+/** 删除自选股分组 */
+export async function deleteWatchlistGroup(id: number): Promise<void> {
+  return invoke("delete_watchlist_group", { id });
+}
+
 /** 获取分组下的自选股 */
 export async function getWatchlistStocks(
   groupId: number
@@ -273,14 +283,56 @@ export async function saveLlmConfig(
   model: string,
   apiKey?: string,
   baseUrl?: string,
-  mode?: string
+  mode?: string,
+  thinkingEnabled?: boolean
 ): Promise<void> {
   return invoke("save_llm_config", {
     provider, model,
     apiKey: apiKey ?? null,
     baseUrl: baseUrl ?? null,
     mode: mode ?? "cloud",
+    thinkingEnabled: thinkingEnabled ?? false,
   });
+}
+
+/** 获取双 LLM 配置 */
+export async function getDualLlmConfig(): Promise<import("@/types/analysis").DualLlmConfig> {
+  return invoke("get_dual_llm_config");
+}
+
+/** 保存双 LLM 配置 */
+export async function saveDualLlmConfig(
+  quickProvider: string,
+  quickModel: string,
+  quickApiKey?: string,
+  quickBaseUrl?: string,
+  quickMode?: string,
+  quickThinkingEnabled?: boolean,
+  deepProvider?: string,
+  deepModel?: string,
+  deepApiKey?: string,
+  deepBaseUrl?: string,
+  deepMode?: string,
+  deepThinkingEnabled?: boolean
+): Promise<void> {
+  return invoke("save_dual_llm_config", {
+    quickProvider, quickModel,
+    quickApiKey: quickApiKey ?? null,
+    quickBaseUrl: quickBaseUrl ?? null,
+    quickMode: quickMode ?? "cloud",
+    quickThinkingEnabled: quickThinkingEnabled ?? false,
+    deepProvider: deepProvider ?? null,
+    deepModel: deepModel ?? null,
+    deepApiKey: deepApiKey ?? null,
+    deepBaseUrl: deepBaseUrl ?? null,
+    deepMode: deepMode ?? null,
+    deepThinkingEnabled: deepThinkingEnabled ?? false,
+  });
+}
+
+/** 获取支持的供应商列表 */
+export async function getSupportedProviders(): Promise<import("@/types/analysis").SupportedProvider[]> {
+  return invoke("get_supported_providers");
 }
 
 /** 获取分析预设 */
@@ -344,4 +396,23 @@ export async function getNorthboundCache(
   days: number
 ): Promise<{ tradeDate: string; shNetInflow: number; szNetInflow: number; totalNetInflow: number }[]> {
   return invoke("get_northbound_cache", { days });
+}
+
+// ==================== 日志系统 ====================
+
+/** 获取最近日志 */
+export async function getRecentLogs(
+  count?: number
+): Promise<import("@/types/log").LogEntry[]> {
+  return invoke("get_recent_logs", { count: count ?? 100 });
+}
+
+/** 清空日志缓冲区 */
+export async function clearLogs(): Promise<void> {
+  return invoke("clear_logs");
+}
+
+/** 获取日志文件路径 */
+export async function getLogFilePath(): Promise<string> {
+  return invoke("get_log_file_path");
 }

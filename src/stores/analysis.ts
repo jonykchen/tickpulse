@@ -31,6 +31,7 @@ export const useAnalysisStore = defineStore("analysis", () => {
     apiKey: null,
     baseUrl: null,
     mode: "cloud",
+    thinkingEnabled: false,
   });
   const pegCache = ref<Map<string, PegData>>(new Map());
 

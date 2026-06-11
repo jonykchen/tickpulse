@@ -1,1 +1,5 @@
-/// 云端 CRUD
+//! 云端 CRUD
+
+pub fn sync_to_cloud() {
+    // 云同步逻辑
+}

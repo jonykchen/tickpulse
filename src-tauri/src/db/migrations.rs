@@ -30,6 +30,11 @@ const MIGRATIONS: &[Migration] = &[
         description: "decision memory v2 for reflection",
         sql: include_str!("migrations/v004_decision_memory.sql"),
     },
+    Migration {
+        version: 5,
+        description: "dual LLM config + thinking mode + fallback chain",
+        sql: include_str!("migrations/v005_dual_llm.sql"),
+    },
     // 后续迁移追加在此，版本号递增
 ];
 

@@ -1,20 +1,36 @@
 <template>
   <div class="position-view">
     <h2>持仓管理</h2>
-    <p class="placeholder">持仓功能开发中...</p>
+    <PositionTable :positions="positions" :quotes="currentQuotes" />
   </div>
 </template>
 
 <script setup lang="ts">
-// Position view - will be implemented in S12
+import { ref, computed, onMounted } from "vue";
+import PositionTable from "@/components/position/PositionTable.vue";
+import { useMarketStore } from "@/stores/market";
+import { getPositions } from "@/lib/tauri";
+import type { StockQuote } from "@/types/stock";
+
+const marketStore = useMarketStore();
+const positions = ref<any[]>([]);
+const currentQuotes = computed(() => Array.from(marketStore.quotes.values()));
+
+async function loadPositions() {
+  try {
+    positions.value = await getPositions(1);
+  } catch (e) {
+    console.error("加载持仓失败:", e);
+  }
+}
+
+onMounted(() => {
+  loadPositions();
+});
 </script>
 
 <style scoped>
 .position-view {
   padding: var(--spacing-lg);
-}
-.placeholder {
-  color: var(--color-text-tertiary);
-  margin-top: var(--spacing-md);
 }
 </style>

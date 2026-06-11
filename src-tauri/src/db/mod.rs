@@ -30,7 +30,7 @@ pub type Result<T> = std::result::Result<T, DbError>;
 #[derive(Clone)]
 pub struct DbPool {
     pub conn: Arc<Mutex<Connection>>,
-    db_path: std::path::PathBuf,
+    pub db_path: std::path::PathBuf,
 }
 
 impl DbPool {

@@ -1,7 +1,7 @@
 <template>
-  <router-view />
+  <AppLayout />
 </template>
 
 <script setup lang="ts">
-// Root App component - routing handles all views
+import AppLayout from "@/components/layout/AppLayout.vue";
 </script>

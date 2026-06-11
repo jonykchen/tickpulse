@@ -2,11 +2,11 @@
 //! CmdOrCtrl+Shift+S: 切换主窗口显示/隐藏
 //! CmdOrCtrl+Shift+D: 打开悬浮窗
 
-use tauri::{App, Manager};
-use tauri_plugin_global_shortcut::{Code, GlobalShortcutExt, Modifiers, Shortcut, ShortcutState};
+use tauri::App;
+use tauri_plugin_global_shortcut::{Code, GlobalShortcutExt, Modifiers, Shortcut, ShortcutEvent};
 
 /// 注册全局快捷键
-pub fn register_hotkeys(app: &App) -> Result<(), tauri::plugin::PluginError> {
+pub fn register_hotkeys(app: &App) -> Result<(), tauri::Error> {
     let shortcut = app.global_shortcut();
 
     // CmdOrCtrl+Shift+S: 切换主窗口
@@ -15,7 +15,7 @@ pub fn register_hotkeys(app: &App) -> Result<(), tauri::plugin::PluginError> {
         Code::KeyS,
     );
     shortcut.on_shortcut(toggle_shortcut, move |app, _event, kind| {
-        if kind != ShortcutState::Pressed {
+        if kind != ShortcutEvent::Pressed {
             return;
         }
         if let Some(window) = app.get_webview_window("main") {
@@ -34,7 +34,7 @@ pub fn register_hotkeys(app: &App) -> Result<(), tauri::plugin::PluginError> {
         Code::KeyD,
     );
     shortcut.on_shortcut(float_shortcut, move |app, _event, kind| {
-        if kind != ShortcutState::Pressed {
+        if kind != ShortcutEvent::Pressed {
             return;
         }
         super::window::open_suspend_window(app);

@@ -3,7 +3,7 @@
 
 use tauri::{
     menu::{Menu, MenuItem},
-    tray::TrayIconBuilder,
+    tray::{TrayIconBuilder, TrayIconId},
     App, Manager,
 };
 
@@ -75,7 +75,6 @@ pub fn init_tray(app: &App) -> Result<(), tauri::Error> {
     let menu = Menu::with_items(app, &[&show_item, &float_item, &quit_item])?;
 
     let _tray = TrayIconBuilder::new()
-        .id("main-tray")
         .icon(app.default_window_icon().unwrap().clone())
         .tooltip("TickPulse")
         .menu(&menu)

@@ -188,8 +188,8 @@ impl AutoTriggerManager {
         // 获取股票名称（从数据库或行情数据）
         let stock_name = self.get_stock_name(secid).await?;
 
-        // 获取 LLM 配置
-        let llm_config = self.engine.get_llm_config()?;
+        // 获取双 LLM 配置
+        let dual_config = self.engine.get_dual_llm_config()?;
 
         // 执行分析
         tracing::info!(
@@ -199,7 +199,7 @@ impl AutoTriggerManager {
             anomaly_type
         );
 
-        match self.engine.run(secid, &stock_name, &llm_config).await {
+        match self.engine.run(secid, &stock_name, &dual_config).await {
             Ok(result) => {
                 tracing::info!(
                     "异动分析完成: {} -> {}",
@@ -228,8 +228,8 @@ impl AutoTriggerManager {
 
         tracing::info!("开始分析 {} 只自选股", secids.len());
 
-        // 2. 获取 LLM 配置
-        let llm_config = self.engine.get_llm_config()?;
+        // 2. 获取双 LLM 配置
+        let dual_config = self.engine.get_dual_llm_config()?;
 
         // 3. 并行分析（但有幂等性检查）
         let mut analyzed = Vec::new();
@@ -246,7 +246,7 @@ impl AutoTriggerManager {
             let stock_name = self.get_stock_name(secid).await?;
 
             // 执行分析
-            match self.engine.run(secid, &stock_name, &llm_config).await {
+            match self.engine.run(secid, &stock_name, &dual_config).await {
                 Ok(result) => {
                     tracing::info!(
                         "分析完成: {} -> {}",
@@ -360,8 +360,8 @@ impl AutoTriggerManager {
         secid: &str,
         stock_name: &str,
     ) -> Result<AnalysisResult, String> {
-        let llm_config = self.engine.get_llm_config()?;
-        self.engine.run(secid, stock_name, &llm_config).await
+        let dual_config = self.engine.get_dual_llm_config()?;
+        self.engine.run(secid, stock_name, &dual_config).await
     }
 
     /// 获取今天已分析的股票列表

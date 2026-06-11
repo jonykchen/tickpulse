@@ -1,10 +1,14 @@
-//! OpenAI 兼容客户端（支持 DeepSeek reasoning_content 回传）
+//! OpenAI 兼容客户端（支持 DeepSeek reasoning_content 回传 + Thinking 模式控制）
+//!
+//! 支持的供应商：OpenAI / DeepSeek / Qwen / GLM / MiniMax
+//! 均使用 OpenAI Chat Completions 兼容 API
 
 use async_trait::async_trait;
 use serde::Deserialize;
 
 use super::{ChatMessage, LlmClient, LlmResponse, MessageRole, TokenUsage};
-use crate::analysis::engine::LlmConfig;
+use crate::analysis::engine::{CloudProvider, LlmConfig};
+use crate::analysis::schemas::StructuredOutputMode;
 
 /// OpenAI Chat Completions API 响应
 #[derive(Debug, Deserialize)]
@@ -73,7 +77,7 @@ impl OpenAICompatClient {
     /// 判断是否支持结构化输出（JSON Schema / Response Format）
     ///
     /// # Returns
-    /// * `true` - 支持（OpenAI、Anthropic、DeepSeek 非 reasoner 模型）
+    /// * `true` - 支持（OpenAI、Anthropic、DeepSeek 非 reasoner 模型、Qwen/GLM/MiniMax）
     /// * `false` - 不支持（DeepSeek Reasoner、Ollama）
     pub fn supports_structured_output(&self, model: &str) -> bool {
         let model_lower = model.to_lowercase();
@@ -82,11 +86,6 @@ impl OpenAICompatClient {
         if model_lower.contains("reasoner") {
             return false;
         }
-
-        // Ollama 当前版本不支持 response_format
-        // 注意：Ollama 可能在未来版本支持，需要定期检查
-        // 这里通过 base_url 或 provider 判断，但此方法只接收 model 参数
-        // 所以假设非 reasoner 的 DeepSeek 模型支持
 
         true
     }
@@ -98,25 +97,29 @@ impl OpenAICompatClient {
     /// * `model` - 模型名称
     pub fn supports_structured_output_for_provider(
         &self,
-        provider: crate::analysis::engine::CloudProvider,
+        provider: CloudProvider,
         model: &str,
     ) -> bool {
         let model_lower = model.to_lowercase();
 
         match provider {
-            crate::analysis::engine::CloudProvider::OpenAI => {
+            CloudProvider::OpenAI => {
                 // OpenAI 支持（需要 gpt-4-turbo 及以上版本）
                 !model_lower.contains("gpt-3.5")
             }
-            crate::analysis::engine::CloudProvider::Anthropic => {
+            CloudProvider::Anthropic => {
                 // Anthropic 支持
                 true
             }
-            crate::analysis::engine::CloudProvider::DeepSeek => {
+            CloudProvider::DeepSeek => {
                 // DeepSeek: 只有非 reasoner 模型支持
                 !model_lower.contains("reasoner")
             }
-            crate::analysis::engine::CloudProvider::Ollama => {
+            CloudProvider::Qwen | CloudProvider::GLM | CloudProvider::MiniMax => {
+                // Qwen/GLM/MiniMax 通过 OpenAI 兼容 API 支持结构化输出
+                true
+            }
+            CloudProvider::Ollama => {
                 // Ollama 当前版本不支持结构化输出
                 false
             }
@@ -214,6 +217,20 @@ impl OpenAICompatClient {
             msg
         }).collect()
     }
+
+    /// 将消息转换为标准 OpenAI 格式
+    fn messages_to_standard_format(&self, messages: &[ChatMessage]) -> Vec<serde_json::Value> {
+        messages.iter()
+            .map(|m| serde_json::json!({
+                "role": match m.role {
+                    MessageRole::System => "system",
+                    MessageRole::User => "user",
+                    MessageRole::Assistant => "assistant",
+                },
+                "content": m.content,
+            }))
+            .collect()
+    }
 }
 
 #[async_trait]
@@ -221,26 +238,19 @@ impl LlmClient for OpenAICompatClient {
     async fn chat(&self, messages: &[ChatMessage], config: &LlmConfig) -> Result<LlmResponse, String> {
         let api_key = config.api_key.as_ref().ok_or("API Key 未配置")?;
 
-        let base_url = config.base_url.as_deref().unwrap_or("https://api.openai.com/v1");
+        // 使用供应商默认 URL（如果未配置自定义 URL）
+        let base_url = config.base_url.as_deref()
+            .unwrap_or_else(|| config.provider.default_base_url());
         let url = format!("{}/chat/completions", base_url);
 
-        // 判断是否为 DeepSeek 供应商
-        let is_deepseek = config.provider == crate::analysis::engine::CloudProvider::DeepSeek;
+        // 判断是否为 DeepSeek 供应商（需要特殊消息格式）
+        let is_deepseek = config.provider == CloudProvider::DeepSeek;
 
         // DeepSeek 使用特殊格式处理 reasoning_content
         let chat_msgs = if is_deepseek {
             self.messages_to_deepseek_format(messages)
         } else {
-            messages.iter()
-                .map(|m| serde_json::json!({
-                    "role": match m.role {
-                        MessageRole::System => "system",
-                        MessageRole::User => "user",
-                        MessageRole::Assistant => "assistant",
-                    },
-                    "content": m.content,
-                }))
-                .collect()
+            self.messages_to_standard_format(messages)
         };
 
         let mut body = serde_json::json!({
@@ -249,9 +259,40 @@ impl LlmClient for OpenAICompatClient {
             "max_tokens": 4096,
         });
 
-        // 如果支持结构化输出且需要 JSON 格式
-        if self.supports_structured_output(&config.model) {
-            body["response_format"] = serde_json::json!({"type": "json_object"});
+        // === Thinking 模式控制 ===
+        // DeepSeek Thinking 模式与 response_format 不兼容
+        if config.thinking_enabled && is_deepseek {
+            // 开启 Thinking 模式：注入 reasoning_effort，不设 response_format
+            body["reasoning_effort"] = serde_json::json!("high");
+            tracing::debug!(
+                "DeepSeek Thinking 模式已启用，跳过 response_format（不兼容）"
+            );
+        } else {
+            // === 结构化输出控制 ===
+            // 根据 StructuredOutputMode::resolve() 决定是否设置 response_format
+            let structured_mode = StructuredOutputMode::resolve(
+                config.provider,
+                &config.model,
+                config.thinking_enabled,
+            );
+
+            match structured_mode {
+                StructuredOutputMode::Native => {
+                    body["response_format"] = serde_json::json!({"type": "json_object"});
+                }
+                StructuredOutputMode::TextWithJsonExtract => {
+                    // 不设 response_format，依赖 json_extract 从文本中提取 JSON
+                    // 在 system prompt 中注入 JSON 输出指令（如果尚未包含）
+                    tracing::debug!(
+                        "结构化输出降级为 TextWithJsonExtract 模式（供应商={}, model={})",
+                        config.provider.as_str(),
+                        config.model
+                    );
+                }
+                StructuredOutputMode::RawText => {
+                    // 纯文本模式，不做任何额外处理
+                }
+            }
         }
 
         let resp = self.client.post(&url)
@@ -316,6 +357,21 @@ mod tests {
         // 普通模型支持
         assert!(client.supports_structured_output("gpt-4"));
         assert!(client.supports_structured_output("deepseek-chat"));
+        assert!(client.supports_structured_output("qwen-plus"));
+        assert!(client.supports_structured_output("glm-4"));
+    }
+
+    #[test]
+    fn test_supports_structured_output_for_provider() {
+        let client = OpenAICompatClient::new();
+
+        // Qwen/GLM/MiniMax 支持
+        assert!(client.supports_structured_output_for_provider(CloudProvider::Qwen, "qwen-plus"));
+        assert!(client.supports_structured_output_for_provider(CloudProvider::GLM, "glm-4"));
+        assert!(client.supports_structured_output_for_provider(CloudProvider::MiniMax, "MiniMax-Text-01"));
+
+        // Ollama 不支持
+        assert!(!client.supports_structured_output_for_provider(CloudProvider::Ollama, "llama3"));
     }
 
     #[test]
@@ -358,5 +414,46 @@ mod tests {
         assert!(messages[1].content.contains("[REASONING]"));
         assert!(messages[1].content.contains("My reasoning..."));
         assert!(messages[1].content.contains("Hi there"));
+    }
+
+    #[test]
+    fn test_structured_output_mode_deepseek_thinking() {
+        // DeepSeek + thinking_enabled = TextWithJsonExtract（不兼容）
+        let mode = StructuredOutputMode::resolve(
+            CloudProvider::DeepSeek,
+            "deepseek-reasoner",
+            true,
+        );
+        assert_eq!(mode, StructuredOutputMode::TextWithJsonExtract);
+    }
+
+    #[test]
+    fn test_structured_output_mode_deepseek_no_thinking() {
+        // DeepSeek 非 reasoner + thinking_disabled = Native
+        let mode = StructuredOutputMode::resolve(
+            CloudProvider::DeepSeek,
+            "deepseek-chat",
+            false,
+        );
+        assert_eq!(mode, StructuredOutputMode::Native);
+    }
+
+    #[test]
+    fn test_structured_output_mode_qwen() {
+        // Qwen 始终支持 Native
+        let mode = StructuredOutputMode::resolve(CloudProvider::Qwen, "qwen-plus", false);
+        assert_eq!(mode, StructuredOutputMode::Native);
+    }
+
+    #[test]
+    fn test_structured_output_mode_glm() {
+        let mode = StructuredOutputMode::resolve(CloudProvider::GLM, "glm-4", false);
+        assert_eq!(mode, StructuredOutputMode::Native);
+    }
+
+    #[test]
+    fn test_structured_output_mode_minimax() {
+        let mode = StructuredOutputMode::resolve(CloudProvider::MiniMax, "MiniMax-Text-01", false);
+        assert_eq!(mode, StructuredOutputMode::Native);
     }
 }

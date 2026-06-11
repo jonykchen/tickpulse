@@ -1,8 +1,12 @@
 //! LLM 客户端接口 + 供应商适配
 
 pub mod anthropic;
+pub mod cost;
+pub mod fallback;
+pub mod json_extract;
 pub mod ollama;
 pub mod openai_compat;
+pub mod router;
 
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
@@ -54,11 +58,12 @@ pub trait LlmClient: Send + Sync {
             },
         ];
         let config = LlmConfig {
-            provider: crate::analysis::engine::CloudProvider::Anthropic,
+            provider: CloudProvider::Anthropic,
             api_key: None,
             model: "default".to_string(),
             base_url: None,
-            mode: crate::analysis::engine::LlmMode::Cloud,
+            mode: super::engine::LlmMode::Cloud,
+            thinking_enabled: false,
         };
         self.chat(&messages, &config).await.map(|r| r.content)
     }
@@ -83,7 +88,12 @@ pub enum MessageRole {
 pub fn create_client(config: &LlmConfig) -> Box<dyn LlmClient> {
     match config.provider {
         CloudProvider::Anthropic => Box::new(anthropic::AnthropicClient::new()),
-        CloudProvider::OpenAI | CloudProvider::DeepSeek => Box::new(openai_compat::OpenAICompatClient::new()),
+        CloudProvider::OpenAI | CloudProvider::DeepSeek => {
+            Box::new(openai_compat::OpenAICompatClient::new())
+        }
+        CloudProvider::Qwen | CloudProvider::GLM | CloudProvider::MiniMax => {
+            Box::new(openai_compat::OpenAICompatClient::new())
+        }
         CloudProvider::Ollama => Box::new(ollama::OllamaClient::new()),
     }
 }
@@ -95,7 +105,7 @@ pub struct MockLlmClient;
 impl LlmClient for MockLlmClient {
     async fn chat(&self, _messages: &[ChatMessage], _config: &LlmConfig) -> Result<LlmResponse, String> {
         Ok(LlmResponse {
-            content: "Mock LLM response: 复审结果 - 部分数据缺失但核心信息可用，建议继续分析。".to_string(),
+            content: r#"{"dimension":"FinancialHealth","rating":"B","summary":"财务状况良好","key_points":["ROE稳健","现金流充裕"],"risks":["负债率偏高"],"opportunities":["行业增长"],"confidence":0.75}"#.to_string(),
             reasoning: None,
             usage: TokenUsage::default(),
             model: "mock".to_string(),

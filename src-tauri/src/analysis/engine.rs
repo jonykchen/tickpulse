@@ -16,7 +16,9 @@ use super::dimensions::management::analyze_management_quality;
 use super::dimensions::technical::analyze_technical_signals;
 use super::dimensions::valuation::analyze_valuation;
 use super::llm::create_client;
+use super::llm::json_extract::parse_dimension_output;
 use super::quality_gate::evaluate_quality;
+use super::schemas::StructuredOutputMode;
 
 /// API Key 混淆密钥（简单 XOR 保护，防止明文存储）
 const OBFUSCATION_KEY: &[u8] = b"TickPulse2024!Secure";
@@ -46,7 +48,7 @@ fn xor_deobfuscate(hex: &str) -> String {
 /// LLM 配置
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LlmConfig {
-    /// 供应商: anthropic / openai / ollama / deepseek
+    /// 供应商: anthropic / openai / ollama / deepseek / qwen / glm / minimax
     pub provider: CloudProvider,
     /// API Key
     pub api_key: Option<String>,
@@ -56,6 +58,48 @@ pub struct LlmConfig {
     pub base_url: Option<String>,
     /// LLM 模式：本地 / 云端
     pub mode: LlmMode,
+    /// 是否启用 Thinking/推理模式（DeepSeek Reasoner 系列）
+    /// 注意：Thinking 模式与 response_format: json_object 不兼容
+    #[serde(default)]
+    pub thinking_enabled: bool,
+}
+
+/// 双 LLM 配置：Quick-Think + Deep-Think 分工
+///
+/// - Quick-Think: 维度分析（结构化输出）、简单判断 → flash/mini 级模型
+/// - Deep-Think: 多空辩论、质量门控复审、综合决策 → pro/max 级模型
+///
+/// 如果 `deep_think` 为 None，则所有任务使用 `quick_think`（向后兼容）
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DualLlmConfig {
+    /// Quick-Think 配置（始终必需）
+    pub quick_think: LlmConfig,
+    /// Deep-Think 配置（可选，为 None 时降级为 quick_think）
+    pub deep_think: Option<LlmConfig>,
+}
+
+impl DualLlmConfig {
+    /// 获取有效的 Deep-Think 配置（未设置时降级为 quick_think）
+    pub fn deep_think_config(&self) -> &LlmConfig {
+        self.deep_think.as_ref().unwrap_or(&self.quick_think)
+    }
+
+    /// 从单一 LlmConfig 构造（向后兼容）
+    pub fn from_single(config: LlmConfig) -> Self {
+        Self {
+            quick_think: config,
+            deep_think: None,
+        }
+    }
+}
+
+/// 任务复杂度层级，用于 LLM 客户端选择
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum TaskComplexity {
+    /// Quick-Think: 维度分析、结构化输出、简单判断
+    Quick,
+    /// Deep-Think: 多空辩论、质量门控复审、综合决策
+    Deep,
 }
 
 /// LLM 模式
@@ -74,6 +118,9 @@ pub enum CloudProvider {
     OpenAI,
     DeepSeek,
     Ollama,
+    Qwen,
+    GLM,
+    MiniMax,
 }
 
 impl CloudProvider {
@@ -83,6 +130,9 @@ impl CloudProvider {
             "openai" => Self::OpenAI,
             "deepseek" => Self::DeepSeek,
             "ollama" => Self::Ollama,
+            "qwen" => Self::Qwen,
+            "glm" => Self::GLM,
+            "minimax" => Self::MiniMax,
             _ => Self::Anthropic,
         }
     }
@@ -93,7 +143,31 @@ impl CloudProvider {
             Self::OpenAI => "openai",
             Self::DeepSeek => "deepseek",
             Self::Ollama => "ollama",
+            Self::Qwen => "qwen",
+            Self::GLM => "glm",
+            Self::MiniMax => "minimax",
         }
+    }
+
+    /// 获取供应商默认 API Base URL
+    pub fn default_base_url(&self) -> &'static str {
+        match self {
+            Self::Anthropic => "https://api.anthropic.com/v1",
+            Self::OpenAI => "https://api.openai.com/v1",
+            Self::DeepSeek => "https://api.deepseek.com/v1",
+            Self::Ollama => "http://localhost:11434",
+            Self::Qwen => "https://dashscope.aliyuncs.com/compatible-mode/v1",
+            Self::GLM => "https://open.bigmodel.cn/api/paas/v4",
+            Self::MiniMax => "https://api.minimax.chat/v1",
+        }
+    }
+
+    /// 是否为 OpenAI 兼容 API 供应商
+    pub fn is_openai_compat(&self) -> bool {
+        matches!(
+            self,
+            Self::OpenAI | Self::DeepSeek | Self::Qwen | Self::GLM | Self::MiniMax
+        )
     }
 }
 
@@ -257,30 +331,45 @@ impl AnalysisEngine {
         Self { db }
     }
 
-    /// 执行完整分析流程
-    /// 维度分析 → 多空辩论 → 质量门控 → 报告生成
+    /// 执行完整分析流程（双 LLM 分工）
+    /// 维度分析（Quick-Think）→ 多空辩论 → 质量门控 → 报告生成
+    ///
+    /// Quick-Think 用于 7 维度分析（结构化输出）
+    /// Deep-Think 用于多空辩论、质量门控复审、综合决策
     pub async fn run(
         &self,
         secid: &str,
         stock_name: &str,
-        llm_config: &LlmConfig,
+        dual_config: &DualLlmConfig,
     ) -> Result<AnalysisResult, String> {
         let start_time = chrono::Utc::now().timestamp();
 
         // 1. 收集股票数据（从数据源获取）
         let stock_data = self.collect_stock_data(secid).await?;
 
-        // 2. 7 维度分析（含 LLM 增强如果配置了 API Key）
-        let mut dimension_reports = HashMap::new();
-        let llm_client = if llm_config.api_key.is_some() || llm_config.provider == CloudProvider::Ollama {
-            Some(create_client(llm_config))
+        // 2. Quick-Think 客户端用于 7 维度分析
+        let quick_config = &dual_config.quick_think;
+        let quick_client = if quick_config.api_key.is_some() || quick_config.provider == CloudProvider::Ollama {
+            Some(create_client(quick_config))
         } else {
             None
         };
 
+        // 确定维度分析的结构化输出模式
+        let structured_mode = StructuredOutputMode::resolve(
+            quick_config.provider,
+            &quick_config.model,
+            quick_config.thinking_enabled,
+        );
+
+        let mut dimension_reports = HashMap::new();
         let dimensions = AnalysisDimension::all();
         for dim in &dimensions {
-            let report = self.analyze_dimension(dim, stock_name, &stock_data, llm_client.as_deref(), llm_config).await;
+            let report = self.analyze_dimension(
+                dim, stock_name, &stock_data,
+                quick_client.as_deref(), quick_config,
+                structured_mode,
+            ).await;
             dimension_reports.insert(format!("{:?}", dim), report);
         }
 
@@ -370,7 +459,7 @@ impl AnalysisEngine {
         Ok(data)
     }
 
-    /// 分析单个维度（含 LLM 增强路径）
+    /// 分析单个维度（含 LLM 增强路径 + 结构化输出降级）
     async fn analyze_dimension(
         &self,
         dim: &AnalysisDimension,
@@ -378,6 +467,7 @@ impl AnalysisEngine {
         data: &str,
         llm_client: Option<&dyn super::llm::LlmClient>,
         llm_config: &LlmConfig,
+        structured_mode: StructuredOutputMode,
     ) -> DimensionReport {
         // 先用规则引擎获取基础报告
         let mut report = match dim {
@@ -405,19 +495,32 @@ impl AnalysisEngine {
                 ],
                 llm_config,
             ).await {
-                // 尝试从 LLM 响应中提取结构化数据
-                if let Ok(parsed) = serde_json::from_str::<super::schemas::DimensionOutputSchema>(&llm_response.content) {
-                    report.summary = parsed.summary;
-                    report.key_points = parsed.key_points;
-                    report.risks = parsed.risks;
-                    report.opportunities = parsed.opportunities;
-                    report.confidence = parsed.confidence;
-                    report.rating = DimensionRating::from_score(
-                        match parsed.rating.as_str() {
-                            "A" => 90.0, "B" => 70.0, "C" => 50.0, "D" => 30.0, "F" => 10.0,
-                            _ => 50.0,
+                // 使用结构化输出降级解析
+                match parse_dimension_output(&llm_response.content, structured_mode) {
+                    Ok(parsed) => {
+                        report.summary = parsed.summary;
+                        report.key_points = parsed.key_points;
+                        report.risks = parsed.risks;
+                        report.opportunities = parsed.opportunities;
+                        report.confidence = parsed.confidence;
+                        report.rating = DimensionRating::from_score(
+                            match parsed.rating.as_str() {
+                                "A" => 90.0, "B" => 70.0, "C" => 50.0, "D" => 30.0, "F" => 10.0,
+                                _ => 50.0,
+                            }
+                        );
+                    }
+                    Err(e) => {
+                        // 解析失败时保留规则引擎结果，记录警告
+                        tracing::warn!(
+                            "维度 {:?} LLM 输出解析失败 (mode={:?}): {}",
+                            dim, structured_mode, e
+                        );
+                        // 如果 LLM 响应非空，至少用其作为 summary
+                        if !llm_response.content.trim().is_empty() && structured_mode == StructuredOutputMode::RawText {
+                            report.summary = llm_response.content;
                         }
-                    );
+                    }
                 }
             }
         }
@@ -508,20 +611,21 @@ impl AnalysisEngine {
         let conn = self.db.conn().map_err(|e| e.to_string())?;
         let now = chrono::Utc::now().timestamp();
 
-        // 先将所有配置设为非活跃
-        conn.execute("UPDATE llm_config SET is_active = 0", [])
+        // 先将所有 quick 层级配置设为非活跃（保留 deep 层级）
+        conn.execute("UPDATE llm_config SET is_active = 0 WHERE config_tier = 'quick'", [])
             .map_err(|e| format!("更新LLM配置失败: {}", e))?;
 
         // 插入或更新
         conn.execute(
-            "INSERT INTO llm_config (provider, model, api_key_encrypted, base_url, mode, is_active, created_at, updated_at)
-             VALUES (?1, ?2, ?3, ?4, ?5, 1, ?6, ?6)",
+            "INSERT INTO llm_config (provider, model, api_key_encrypted, base_url, mode, thinking_enabled, config_tier, fallback_order, is_active, created_at, updated_at)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, 'quick', 0, 1, ?7, ?7)",
             rusqlite::params![
                 config.provider.as_str(),
                 config.model,
                 config.api_key.as_deref().map(xor_obfuscate).unwrap_or_default(),
                 config.base_url.as_deref().unwrap_or(""),
                 match config.mode { LlmMode::Cloud => "cloud", LlmMode::Local => "local" },
+                config.thinking_enabled as i32,
                 now,
             ],
         ).map_err(|e| format!("保存LLM配置失败: {}", e))?;
@@ -529,11 +633,43 @@ impl AnalysisEngine {
         Ok(())
     }
 
-    /// 获取当前活跃的 LLM 配置
+    /// 保存双 LLM 配置到数据库
+    pub fn save_dual_llm_config(&self, dual_config: &DualLlmConfig) -> Result<(), String> {
+        // 保存 quick_think
+        self.save_llm_config(&dual_config.quick_think)?;
+
+        // 保存 deep_think（如果有）
+        if let Some(deep) = &dual_config.deep_think {
+            let conn = self.db.conn().map_err(|e| e.to_string())?;
+            let now = chrono::Utc::now().timestamp();
+
+            // 将所有 deep 层级配置设为非活跃
+            conn.execute("UPDATE llm_config SET is_active = 0 WHERE config_tier = 'deep'", [])
+                .map_err(|e| format!("更新Deep LLM配置失败: {}", e))?;
+
+            conn.execute(
+                "INSERT INTO llm_config (provider, model, api_key_encrypted, base_url, mode, thinking_enabled, config_tier, fallback_order, is_active, created_at, updated_at)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, 'deep', 0, 1, ?7, ?7)",
+                rusqlite::params![
+                    deep.provider.as_str(),
+                    deep.model,
+                    deep.api_key.as_deref().map(xor_obfuscate).unwrap_or_default(),
+                    deep.base_url.as_deref().unwrap_or(""),
+                    match deep.mode { LlmMode::Cloud => "cloud", LlmMode::Local => "local" },
+                    deep.thinking_enabled as i32,
+                    now,
+                ],
+            ).map_err(|e| format!("保存Deep LLM配置失败: {}", e))?;
+        }
+
+        Ok(())
+    }
+
+    /// 获取当前活跃的 LLM 配置（quick 层级）
     pub fn get_llm_config(&self) -> Result<LlmConfig, String> {
         let conn = self.db.conn().map_err(|e| e.to_string())?;
         let result = conn.query_row(
-            "SELECT provider, model, api_key_encrypted, base_url, mode FROM llm_config WHERE is_active = 1 ORDER BY updated_at DESC LIMIT 1",
+            "SELECT provider, model, api_key_encrypted, base_url, mode, thinking_enabled FROM llm_config WHERE is_active = 1 AND config_tier = 'quick' ORDER BY updated_at DESC LIMIT 1",
             [],
             |row| {
                 let provider_str: String = row.get(0)?;
@@ -541,17 +677,19 @@ impl AnalysisEngine {
                 let api_key: String = row.get(2)?;
                 let base_url: String = row.get(3)?;
                 let mode_str: String = row.get(4)?;
-                Ok((provider_str, model, api_key, base_url, mode_str))
+                let thinking: i32 = row.get(5)?;
+                Ok((provider_str, model, api_key, base_url, mode_str, thinking))
             },
         );
 
         match result {
-            Ok((provider_str, model, api_key, base_url, mode_str)) => Ok(LlmConfig {
+            Ok((provider_str, model, api_key, base_url, mode_str, thinking)) => Ok(LlmConfig {
                 provider: CloudProvider::from_str(&provider_str),
                 model,
                 api_key: if api_key.is_empty() { None } else { Some(xor_deobfuscate(&api_key)) },
                 base_url: if base_url.is_empty() { None } else { Some(base_url) },
                 mode: if mode_str == "local" { LlmMode::Local } else { LlmMode::Cloud },
+                thinking_enabled: thinking != 0,
             }),
             Err(_) => Ok(LlmConfig {
                 provider: CloudProvider::Anthropic,
@@ -559,8 +697,47 @@ impl AnalysisEngine {
                 api_key: None,
                 base_url: None,
                 mode: LlmMode::Cloud,
+                thinking_enabled: false,
             }),
         }
+    }
+
+    /// 获取双 LLM 配置（quick + deep）
+    pub fn get_dual_llm_config(&self) -> Result<DualLlmConfig, String> {
+        let quick = self.get_llm_config()?;
+
+        // 尝试获取 deep 层级配置
+        let conn = self.db.conn().map_err(|e| e.to_string())?;
+        let deep_result = conn.query_row(
+            "SELECT provider, model, api_key_encrypted, base_url, mode, thinking_enabled FROM llm_config WHERE is_active = 1 AND config_tier = 'deep' ORDER BY updated_at DESC LIMIT 1",
+            [],
+            |row| {
+                let provider_str: String = row.get(0)?;
+                let model: String = row.get(1)?;
+                let api_key: String = row.get(2)?;
+                let base_url: String = row.get(3)?;
+                let mode_str: String = row.get(4)?;
+                let thinking: i32 = row.get(5)?;
+                Ok((provider_str, model, api_key, base_url, mode_str, thinking))
+            },
+        );
+
+        let deep = match deep_result {
+            Ok((provider_str, model, api_key, base_url, mode_str, thinking)) => Some(LlmConfig {
+                provider: CloudProvider::from_str(&provider_str),
+                model,
+                api_key: if api_key.is_empty() { None } else { Some(xor_deobfuscate(&api_key)) },
+                base_url: if base_url.is_empty() { None } else { Some(base_url) },
+                mode: if mode_str == "local" { LlmMode::Local } else { LlmMode::Cloud },
+                thinking_enabled: thinking != 0,
+            }),
+            Err(_) => None,
+        };
+
+        Ok(DualLlmConfig {
+            quick_think: quick,
+            deep_think: deep,
+        })
     }
 }
 

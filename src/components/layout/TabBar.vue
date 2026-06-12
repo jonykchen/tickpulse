@@ -1,6 +1,6 @@
 <template>
-  <div class="tab-bar titlebar-drag">
-    <nav class="tab-bar__nav titlebar-no-drag" ref="navRef">
+  <div class="tab-bar">
+    <nav class="tab-bar__nav" ref="navRef">
       <router-link
         v-for="tab in tabs"
         :key="tab.path"
@@ -16,7 +16,7 @@
         :style="indicatorStyle"
       ></span>
     </nav>
-    <div class="tab-bar__status titlebar-no-drag">
+    <div class="tab-bar__status">
       <MarketPhaseBar />
     </div>
   </div>

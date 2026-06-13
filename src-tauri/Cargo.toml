@@ -1,5 +1,5 @@
 [package]
-name = "stock-monitor"
+name = "tickpulse"
 version = "0.1.0"
 description = "TickPulse - A股桌面行情监控"
 authors = ["jonychen"]
@@ -7,7 +7,7 @@ edition = "2021"
 rust-version = "1.77"
 
 [lib]
-name = "stock_monitor_lib"
+name = "tickpulse_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]

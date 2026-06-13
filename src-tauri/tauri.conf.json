@@ -1,9 +1,9 @@
 {
   "$schema": "https://raw.githubusercontent.com/tauri-apps/tauri/dev/crates/tauri-config-schema/schema.json",
   "productName": "TickPulse",
-  "mainBinaryName": "stock-monitor",
+  "mainBinaryName": "tickpulse",
   "version": "0.1.0",
-  "identifier": "com.stock-monitor.app",
+  "identifier": "com.tickpulse.app",
   "build": {
     "beforeDevCommand": "npm run dev",
     "beforeBuildCommand": "npm run build",
@@ -26,7 +26,7 @@
       }
     ],
     "security": {
-      "csp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src https://*.eastmoney.com https://*.10jqka.com.cn https://*.sina.com.cn https://*.1234567.com.cn https://*.dzh.com.cn https://*.gtimg.cn https://*.qq.com wss://*.stock-monitor.app https://sync.stock-monitor.app"
+      "csp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src https://*.eastmoney.com https://*.10jqka.com.cn https://*.sina.com.cn https://*.1234567.com.cn https://*.dzh.com.cn https://*.gtimg.cn https://*.qq.com"
     },
     "trayIcon": {
       "iconPath": "icons/icon.png",
@@ -50,7 +50,7 @@
   "plugins": {
     "sql": {
       "preload": {
-        "db": "sqlite:stock-monitor.db"
+        "db": "sqlite:tickpulse.db"
       }
     }
   }

@@ -30,7 +30,7 @@ pub struct TokenStore {
 impl TokenStore {
     pub fn new() -> Self {
         Self {
-            service_name: "com.stock-monitor.app".to_string(),
+            service_name: "com.tickpulse.app".to_string(),
         }
     }
 

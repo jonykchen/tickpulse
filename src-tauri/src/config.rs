@@ -4,7 +4,7 @@ pub mod constants {
     pub const APP_NAME: &str = "TickPulse";
 
     /// 数据库文件名
-    pub const DB_NAME: &str = "stock-monitor.db";
+    pub const DB_NAME: &str = "tickpulse.db";
 
     /// 默认行情刷新间隔（秒）
     pub const DEFAULT_REFRESH_INTERVAL_SECS: u64 = 10;

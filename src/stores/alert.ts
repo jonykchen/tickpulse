@@ -4,7 +4,7 @@ import type { AlertRule } from "@/types/alert";
 import { AlertRuleType } from "@/types/alert";
 import { getAlertRules, addAlertRule, removeAlertRule, toggleAlertRule } from "@/lib/tauri";
 
-const STORAGE_KEY = "stock-monitor-alert-rules";
+const STORAGE_KEY = "tickpulse-alert-rules";
 
 export const useAlertStore = defineStore("alert", () => {
   // State

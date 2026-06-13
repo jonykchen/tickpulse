@@ -3,7 +3,7 @@ import { ref } from "vue";
 import { getSettings, updateSetting } from "@/lib/tauri";
 import { DEFAULT_CONFIG, DEFAULT_SUSPEND_CONFIG, type AppConfig, type SuspendConfig } from "@/types/config";
 
-const STORAGE_KEY = "stock-monitor-config";
+const STORAGE_KEY = "tickpulse-config";
 
 export const useConfigStore = defineStore("config", () => {
   // State

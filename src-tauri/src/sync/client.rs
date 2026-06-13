@@ -14,7 +14,7 @@ pub struct SyncConfig {
 impl Default for SyncConfig {
     fn default() -> Self {
         Self {
-            server_url: "https://sync.stock-monitor.app".to_string(),
+            server_url: "https://sync.tickpulse.app".to_string(), // TODO: 配置实际云服务地址
             auth_token: None,
         }
     }

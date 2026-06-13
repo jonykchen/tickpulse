@@ -1,0 +1,45 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "TickPulse LLM 配置示例",
+  "description": "AI 分析引擎的 LLM 供应商配置",
+  "providers": [
+    {
+      "name": "claude",
+      "enabled": true,
+      "apiKey": "sk-ant-xxxxx",
+      "baseUrl": "https://api.anthropic.com",
+      "model": "claude-sonnet-4-6",
+      "maxTokens": 4096,
+      "temperature": 0.7
+    },
+    {
+      "name": "openai",
+      "enabled": false,
+      "apiKey": "sk-xxxxx",
+      "baseUrl": "https://api.openai.com/v1",
+      "model": "gpt-4o",
+      "maxTokens": 4096,
+      "temperature": 0.7
+    },
+    {
+      "name": "deepseek",
+      "enabled": false,
+      "apiKey": "sk-xxxxx",
+      "baseUrl": "https://api.deepseek.com/v1",
+      "model": "deepseek-chat",
+      "maxTokens": 4096,
+      "temperature": 0.7
+    },
+    {
+      "name": "ollama",
+      "enabled": false,
+      "baseUrl": "http://localhost:11434/v1",
+      "model": "qwen2.5:14b",
+      "maxTokens": 4096,
+      "temperature": 0.7
+    }
+  ],
+  "defaultProvider": "claude",
+  "timeout": 30000,
+  "retryCount": 3
+}

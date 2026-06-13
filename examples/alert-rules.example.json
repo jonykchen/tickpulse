@@ -1,0 +1,121 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "TickPulse 预警规则配置示例",
+  "description": "股票预警规则配置",
+  "rules": [
+    {
+      "id": "price-break-high",
+      "name": "价格突破新高",
+      "enabled": true,
+      "condition": {
+        "type": "price_above",
+        "value": null,
+        "description": "股价突破近 60 日新高"
+      },
+      "notification": {
+        "sound": true,
+        "toast": true
+      }
+    },
+    {
+      "id": "price-break-low",
+      "name": "价格跌破支撑",
+      "enabled": true,
+      "condition": {
+        "type": "price_below",
+        "value": null,
+        "description": "股价跌破近 20 日新低"
+      },
+      "notification": {
+        "sound": true,
+        "toast": true
+      }
+    },
+    {
+      "id": "pct-change-up",
+      "name": "涨幅预警",
+      "enabled": true,
+      "condition": {
+        "type": "pct_change_above",
+        "value": 5.0,
+        "description": "涨幅超过 5%"
+      },
+      "notification": {
+        "sound": true,
+        "toast": true
+      }
+    },
+    {
+      "id": "pct-change-down",
+      "name": "跌幅预警",
+      "enabled": true,
+      "condition": {
+        "type": "pct_change_below",
+        "value": -3.0,
+        "description": "跌幅超过 3%"
+      },
+      "notification": {
+        "sound": true,
+        "toast": true
+      }
+    },
+    {
+      "id": "volume-surge",
+      "name": "量比突增",
+      "enabled": true,
+      "condition": {
+        "type": "volume_ratio_above",
+        "value": 2.0,
+        "description": "量比超过 2 倍"
+      },
+      "notification": {
+        "sound": false,
+        "toast": true
+      }
+    },
+    {
+      "id": "limit-up",
+      "name": "涨停提醒",
+      "enabled": true,
+      "condition": {
+        "type": "limit_up",
+        "description": "股价触及涨停价"
+      },
+      "notification": {
+        "sound": true,
+        "toast": true
+      }
+    },
+    {
+      "id": "limit-down",
+      "name": "跌停提醒",
+      "enabled": true,
+      "condition": {
+        "type": "limit_down",
+        "description": "股价触及跌停价"
+      },
+      "notification": {
+        "sound": true,
+        "toast": true
+      }
+    },
+    {
+      "id": "board-break",
+      "name": "炸板提醒",
+      "enabled": true,
+      "condition": {
+        "type": "board_break",
+        "description": "涨停后打开涨停板"
+      },
+      "notification": {
+        "sound": true,
+        "toast": true
+      }
+    }
+  ],
+  "quietHours": {
+    "enabled": true,
+    "start": "22:00",
+    "end": "08:00"
+  }
+}

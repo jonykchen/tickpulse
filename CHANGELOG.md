@@ -88,4 +88,4 @@
 
 ## 贡献
 
-如果您发现了 bug 或有新功能建议，欢迎提交 [Issue](https://github.com/your-username/stock-monitor/issues) 或 [Pull Request](https://github.com/your-username/stock-monitor/pulls)。
+如果您发现了 bug 或有新功能建议，欢迎提交 [Issue](https://github.com/jonykchen/tickpulse/issues) 或 [Pull Request](https://github.com/jonykchen/tickpulse/pulls)。

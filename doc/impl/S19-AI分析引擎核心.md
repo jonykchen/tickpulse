@@ -407,7 +407,7 @@ CREATE TABLE llm_config (
 ### 5.2 项目结构扩展
 
 ```
-stock-monitor/
+tickpulse/
 ├── src-tauri/src/
 │   ├── analysis/                    # 🆕 AI分析引擎
 │   │   ├── mod.rs                   # AnalysisEngine 主入口

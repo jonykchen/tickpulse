@@ -29,10 +29,10 @@
 │                      TickPulse 应用架构                      │
 ├─────────────────────────────────────────────────────────────┤
 │  前端 (Vue 3 + TypeScript)                                  │
-│  ├── 视图层: 12 个路由视图 (Home/Position/Settings/...)     │
-│  ├── 组件层: 58 个 Vue 组件 (Charts/Stock/Layout/...)       │
-│  ├── 状态管理: 6 个 Pinia Stores (market/alert/anomaly/...) │
-│  └── IPC 封装: src/lib/tauri.ts (40+ API 函数)              │
+│  ├── 视图层: 12 个路由视图 (Home/Position/AnalysisDashboard/...) │
+│  ├── 组件层: 50+ 个 Vue 组件 (Charts/Stock/Layout/Analysis/...) │
+│  ├── 状态管理: 7 个 Pinia Stores (market/alert/anomaly/analysis/...) │
+│  └── IPC 封装: src/lib/tauri.ts (50+ API 函数)                 │
 ├─────────────────────────────────────────────────────────────┤
 │  Tauri Bridge (IPC)                                         │
 │  └── invoke() / listen() 双向通信                           │
@@ -176,7 +176,7 @@ npm run tauri dev
 ## 六、项目结构
 
 ```
-stock-monitor/
+tickpulse/
 ├── src/                          # 前端源码 (Vue 3 + TS)
 │   ├── views/                    # 路由视图 (12个)
 │   │   ├── Home.vue              # 首页 - 自选股行情
@@ -303,7 +303,7 @@ stock-monitor/
 │
 ├── doc/                          # 文档
 │   ├── impl/                     # 实现文档 (S01-S20)
-│   └── stock-monitor-tauri-tech-spec-v2.md
+│   └── QUICKSTART.md              # 快速上手
 │
 ├── package.json                  # Node.js 配置
 ├── vite.config.ts                # Vite 配置
@@ -523,7 +523,7 @@ npm run tauri build
 {
   "productName": "TickPulse",
   "version": "0.1.0",
-  "identifier": "com.stock-monitor.app",
+  "identifier": "com.tickpulse.app",
   "bundle": {
     "active": true,
     "targets": "all"
@@ -556,9 +556,9 @@ interface LlmConfig {
 ### 9.3 数据目录
 
 数据库和配置存储位置：
-- **Windows**: `%APPDATA%/com.stock-monitor.app/`
-- **macOS**: `~/Library/Application Support/com.stock-monitor.app/`
-- **Linux**: `~/.config/com.stock-monitor.app/`
+- **Windows**: `%APPDATA%/com.tickpulse.app/`
+- **macOS**: `~/Library/Application Support/com.tickpulse.app/`
+- **Linux**: `~/.config/com.tickpulse.app/`
 
 ---
 

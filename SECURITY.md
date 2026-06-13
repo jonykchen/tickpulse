@@ -20,7 +20,7 @@
 请通过以下方式私下联系我们：
 
 - **邮箱**: security@example.com（请替换为实际邮箱）
-- **GitHub Security Advisories**: [提交安全建议](https://github.com/your-username/stock-monitor/security/advisories/new)
+- **GitHub Security Advisories**: [提交安全建议](https://github.com/jonykchen/tickpulse/security/advisories/new)
 
 ### 报告内容
 

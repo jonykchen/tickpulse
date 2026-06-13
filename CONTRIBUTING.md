@@ -22,7 +22,7 @@
 
 ### 报告 Bug
 
-如果您发现了 bug，请通过 [GitHub Issues](https://github.com/your-username/stock-monitor/issues) 提交报告。
+如果您发现了 bug，请通过 [GitHub Issues](https://github.com/jonykchen/tickpulse/issues) 提交报告。
 
 提交 Bug 报告时，请包含：
 
@@ -39,7 +39,7 @@
 
 ### 建议新功能
 
-我们欢迎新功能建议！请通过 [GitHub Issues](https://github.com/your-username/stock-monitor/issues) 提交，并包含：
+我们欢迎新功能建议！请通过 [GitHub Issues](https://github.com/jonykchen/tickpulse/issues) 提交，并包含：
 
 1. **功能描述**: 清晰描述您希望添加的功能
 2. **使用场景**: 说明该功能解决什么问题
@@ -70,7 +70,7 @@
 ### 项目结构
 
 ```
-stock-monitor/
+tickpulse/
 ├── src/                    # Vue 前端源码
 │   ├── views/              # 路由视图
 │   ├── components/         # Vue 组件
@@ -188,7 +188,7 @@ Closes #123
 如果您在贡献过程中遇到问题，可以：
 
 - 查看 [文档](doc/QUICKSTART.md)
-- 在 [Discussions](https://github.com/your-username/stock-monitor/discussions) 中提问
+- 在 [Discussions](https://github.com/jonykchen/tickpulse/discussions) 中提问
 - 加入社区交流群（如有）
 
 再次感谢您的贡献！

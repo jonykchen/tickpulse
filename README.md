@@ -83,7 +83,7 @@
 ```bash
 # 克隆项目
 git clone https://github.com/jonychen/tickpulse.git
-cd stock-monitor
+cd tickpulse
 
 # 安装 Node.js 依赖
 npm install

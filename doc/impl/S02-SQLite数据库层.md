@@ -40,7 +40,7 @@ tauri::Builder::default()
     .setup(|app| {
         let app_dir = app.path().app_data_dir()?;
         std::fs::create_dir_all(&app_dir)?;
-        let db_path = app_dir.join("stock-monitor.db");
+        let db_path = app_dir.join("tickpulse.db");
         let pool = DbPool::open(&db_path)?;
         db::migrations::run(&pool)?;
         app.manage(pool);
